@@ -1,0 +1,682 @@
+:root {
+     --bs-bg-dark: #1b1e21; /* Sfondo scuro */
+     --bs-text-light:rgb(199, 195, 195); /* Testo chiaro */
+     --bs-primary: #0d6efd; /* Colore primario (blu) */
+     --bs-border-color: #343a40; /* Border scuro */
+     --primary-clr: var(--bs-primary); /* Usa il colore primario di Bootstrap */
+     }
+
+ * {
+   margin: 0;
+   padding: 0;
+   box-sizing: border-box;
+   font-family: "Poppins", sans-serif;
+ }
+ /* nice scroll bar */
+ ::-webkit-scrollbar {
+   width: 5px;
+   height: 5px;
+ }
+ ::-webkit-scrollbar-track {
+   background: #f5f5f5;
+   border-radius: 50px;
+ }
+ ::-webkit-scrollbar-thumb {
+   background: var(--primary-clr);
+   border-radius: 50px;
+ }
+
+ body {
+ background-color: var(--bs-bg-dark);
+ color: var(--bs-text-light);
+ }
+
+ .main-container {
+     background-color: var(--bs-bg-dark); /* Scuro */
+     border: 1px solid var(--bs-border-color);
+     color: var(--bs-text-light);
+     }
+
+ 
+ .calendar {
+     padding: 15px;
+     border-radius: 8px;
+     box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+     background-color: #f8f9fa;
+ }
+ /* set after behind the main element */
+ .calendar::before,
+ .calendar::after {
+     content: "";
+     position: absolute;
+     top: 50%;
+     left: 100%;
+     width: 12px;
+     height: 97%;
+     border-radius: 0 5px 5px 0;
+     background-color: #d3d4d6d7;
+     transform: translateY(-50%);
+ }
+ .calendar::before {
+     height: 94%;
+     left: calc(100% + 12px);
+     background-color: rgb(153, 153, 153);
+ }
+
+ .calendar .month .prev:hover,
+ .calendar .month .next:hover {
+     color: var(--primary-clr);
+ }
+
+ .weekdays div {
+     width: 14.28%;
+     height: 100%;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+ }
+
+ .calendar .days .day {
+     width: 14.28%;
+     height: 80px; /* Adjusted height */
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     cursor: pointer;
+     color: var(--primary-clr);
+     border: 1px solid var(--bs-primary);
+     position: relative; /* Needed for event dot */
+     font-size: 0.9rem; /* Adjusted size */
+ }
+ /* Simplified borders */
+ .calendar .days .day { border: 1px solid var(--bs-primary); }
+
+ .calendar .days .day:not(.prev-date, .next-date):hover {
+     color: #fff;
+     background-color: var(--primary-clr);
+ }
+ .calendar .days .prev-date,
+ .calendar .days .next-date {
+     color: #b3b3b3;
+ }
+ .calendar .days .active {
+     font-size: 1.5rem; /* Adjusted size */
+     color: #fff;
+     background-color: var(--primary-clr);
+ }
+ .calendar .days .today {
+     font-size: 1.5rem; /* Adjusted size */
+     font-weight: bold;
+ }
+ .calendar .days .event::after { /* Dot for event */
+     content: "";
+     position: absolute;
+     bottom: 8px; /* Position dot */
+     left: 50%;
+     width: 6px; /* Dot size */
+     height: 6px;
+     border-radius: 50%;
+     transform: translateX(-50%);
+     background-color: var(--primary-clr);
+ }
+ .calendar .days .day:hover.event::after,
+ .calendar .days .active.event::after {
+     background-color: #fff; /* White dot on hover/active */
+ }
+
+
+ .calendar .goto-today .goto {
+     display: flex;
+     align-items: center;
+     border-radius: 5px;
+     overflow: hidden;
+     border: 1px solid var(--bs-primary);
+ }
+ .calendar .goto-today .goto input {
+     width: 100%;
+     height: 28px; /* Adjusted */
+     outline: none;
+     border: none;
+     padding: 0 10px; /* Adjusted */
+     color: var(--primary-clr);
+ }
+ .calendar .goto-today button {
+     padding: 4px 8px; /* Adjusted */
+     border: 1px solid var(--bs-primary);
+     border-radius: 5px;
+     background-color: transparent;
+     cursor: pointer;
+     color: var(--primary-clr);
+     font-size: 0.9rem;
+ }
+ .calendar .goto-today button:hover {
+     color: #fff;
+     background-color: var(--primary-clr);
+ }
+ .calendar .goto-today .goto button {
+     border: none;
+     border-left: 1px solid var(--bs-primary);
+     border-radius: 0;
+ }
+ .right { /* Right panel for event list (not in current HTML) */
+     position: relative;
+     width: 40%;
+     min-height: 100%;
+     padding: 20px 0;
+ }
+ .right .today-date {
+     width: 100%;
+     height: 50px;
+     display: flex;
+     flex-wrap: wrap;
+     gap: 10px;
+     align-items: center;
+     justify-content: space-between;
+     padding: 0 40px;
+     padding-left: 70px;
+     margin-top: 20px; /* Adjusted */
+     margin-bottom: 10px; /* Adjusted */
+     text-transform: capitalize;
+ }
+ .right .today-date .event-day {
+     font-size: 1.5rem; /* Adjusted */
+     font-weight: 500;
+ }
+ .right .today-date .event-date {
+     font-size: 0.9rem; /* Adjusted */
+     font-weight: 400;
+     color: #878895;
+ }
+
+ .events .event {
+     position: relative;
+     width: 95%;
+     min-height: 60px; /* Adjusted */
+     display: flex;
+     justify-content: center;
+     flex-direction: column;
+     gap: 2px; /* Reduced gap */
+     padding: 5px 15px; /* Adjusted */
+     padding-left: 50px;
+     color: #fff;
+     background: linear-gradient(90deg, #3f4458, transparent);
+     cursor: pointer;
+     margin-bottom: 2px; /* Space between events */
+ }
+ /* even event */
+ .events .event:nth-child(even) {
+     background: transparent;
+ }
+ .events .event:hover {
+     background: linear-gradient(90deg, var(--primary-clr), transparent);
+ }
+ .events .event .title {
+     display: flex;
+     align-items: center;
+     pointer-events: none;
+ }
+ .events .event .title .event-title {
+     font-size: 0.9rem; /* Adjusted */
+     font-weight: 400;
+     margin-left: 15px; /* Adjusted */
+ }
+ .events .event i {
+     color: var(--primary-clr);
+     font-size: 0.5rem;
+ }
+ .events .event:hover i {
+     color: #fff;
+ }
+ .events .event .event-time,
+ .events .event .event-place {
+     font-size: 0.75rem; /* Adjusted */
+     font-weight: 400;
+     color: #878895;
+     margin-left: 15px;
+     pointer-events: none;
+ }
+ .events .event:hover .event-time,
+ .events .event:hover .event-place {
+     color: #fff;
+ }
+ .events .no-event {
+     width: 100%;
+     height: 100%;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     font-size: 1.2rem; /* Adjusted */
+     font-weight: 500;
+     color: #878895;
+     padding: 20px;
+ }
+
+ 
+ .daily-view {
+     display: none;
+     width: 100%;
+     height: 100%;
+     color:rgb(19, 36, 103);
+     background-color: #fff;
+     border-radius: 5px;
+     overflow: hidden;
+     flex-direction: column;
+ }
+ .daily-view.visible {
+     display: flex;
+ }
+ .daily-view-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     margin-bottom: 10px;
+     padding: 10px 20px;
+     border-bottom: 1px solid var(--bs-primary);
+     flex-shrink: 0;
+ }
+ .daily-view-header h2 {
+     font-size: 1.4rem;
+     color: var(--primary-clr);
+     margin: 0;
+ }
+ .back-to-month-btn {
+     padding: 5px 12px;
+     background-color: var(--primary-clr);
+     color: white;
+     border: none;
+     border-radius: 5px;
+     cursor: pointer;
+     font-size: 0.9rem;
+     transition: background-color 0.2s ease;
+     flex-shrink: 0;
+ }
+ .back-to-month-btn:hover {
+     background-color: #9d6acacc;
+ }
+
+ .corner {
+     width: 150px;
+     flex-shrink: 0;
+     padding: 10px 5px;
+     font-weight: bold;
+     text-align: center;
+     background-color: #f8f8f8;
+     border-right: 1px solid var(--bs-primary);
+     font-size: 0.8rem;
+     color: #555;
+     box-sizing: border-box;
+ }
+
+ .time-axis {
+     flex-grow: 1;
+     display: flex;
+     background-color: #f8f8f8;
+     position: relative;
+     overflow: hidden;
+ }
+
+ .resource-axis {
+     width: 150px;
+     flex-shrink: 0;
+     overflow-y: auto;
+     overflow-x: hidden;
+     border-right: 1px solid var(--bs-primary);
+ }
+ 
+ .time-slot-header:first-child {
+     border-left: none;
+ }
+ .time-slot-header::after {
+     content: '';
+     position: absolute;
+     top: 100%;
+     left: 0;
+     width: 1px;
+     height: 100vh;
+     background-color: #eee;
+     z-index: 1;
+ }
+ .resource-label {
+     height: 60px;
+     display: flex;
+     align-items: center;
+     padding: 5px 10px;
+     font-size: 0.85rem;
+     border-bottom: 1px solid var(--bs-primary);
+     box-sizing: border-box;
+     background-color: #fff;
+     font-weight: 500;
+     overflow: hidden;
+     text-overflow: ellipsis;
+     white-space: nowrap;
+ }
+ .resource-label:last-child {
+     border-bottom: none;
+ }
+ .resource-row {
+     height: 60px;
+     position: relative;
+     border-bottom: 1px solid var(--bs-primary);
+     box-sizing: border-box;
+     background-color: #fff;
+ }
+ .resource-row:last-child {
+     border-bottom: none;
+ }
+ .resource-row:nth-child(even) {
+     background-color: #fafafa;
+ }
+ 
+ .event-bar .event-title {
+     font-weight: bold;
+      /* font-size: 0.8em; */ /* Adjusted */
+      line-height: 1.2;
+      display: block; /* Adjusted */
+ }
+ .event-bar .event-details{
+      font-size: 0.7em; /* Adjusted */
+      line-height: 1.1;
+      opacity: 0.9;
+      display: block; /* Adjusted */
+ }
+ .event-bar.short-event .event-details {
+     display: none;
+ }
+ /* --- End of Original Styles --- */
+
+ /* Modal Text Color Fix */
+ .modal-body, .modal-header, .modal-footer {
+     color: #333; /* Ensure text inside modal is readable */
+ }
+ .modal-content {
+ background-color: var(--bs-bg-dark);
+ color: var(--bs-text-light);
+ }
+ .modal-header .btn-close {
+     filter: invert(1); /* Per contrastare lo sfondo scuro */
+ }
+
+
+ /* Media Queries (Keep existing, adjust if needed based on final HTML/CSS) */
+ @media screen and (max-width: 1000px) {
+     .main-container { width: 95%; min-height: auto; }
+     /* Adjustments for Bootstrap grid might be needed */
+ }
+ @media screen and (max-width: 500px) {
+     /* Further adjustments */
+     .main-container h2 { font-size: 1.2rem; }
+     .main-container .btn-group .btn { font-size: 0.8rem; padding: 0.25rem 0.5rem;}
+ }
+ @media (max-width: 768px) {
+     .main-container {
+         padding: 1rem;
+     }
+
+     .timeline-container {
+         font-size: 0.9em;
+     }
+     }
+ .time-ruler {
+ width: 80%; /* 4/5 dello spazio */
+ }
+ .time-ruler div {
+     flex: 1;
+     border-left: 1px dotted var(--bs-primary);
+     text-align: center;
+     font-size: 0.75rem;
+     color: #999;
+     }
+
+ .time-marker {
+     position: absolute;
+     white-space: nowrap;
+     text-align: center;
+     background: white;
+     padding: 2px 5px;
+     border: 1px solid var(--bs-primary);
+     cursor: default;
+     font-size: 0.8em;
+ }
+
+ .event-container {
+     width: 20%; /* 1/5 dello spazio */
+ }
+
+     .location-row {
+     position: absolute;
+     left: 0;
+     width: 100%;
+ }
+ .event-bar-container {
+ position: relative;
+ flex-grow: 1;
+ background-color: #fff;
+ border-left: 1px solid var(--bs-primary);
+ padding-left: 10px; /* Spazio tra etichetta e barre */
+ overflow-x: auto;
+ }
+ .event-bar {
+ position: absolute;
+ height: 30px;
+ background-color: var(--primary-clr);
+ color: white;
+ text-align: center;
+ padding: 2px 5px;
+ border-radius: 5px;
+ top: 40px; /* sotto al time-ruler */
+ }
+
+        .event-label {
+        width: 150px; /* Fissa la larghezza della colonna delle etichette */
+        padding: 5px;
+        background-color: #f1f1f1;
+        color: #333;
+        text-align: right;
+        font-weight: bold;
+        flex-shrink: 0;
+        }
+ 
+
+    .left-section {
+        width: 30%;
+        background-color: var(--bs-bg-dark);
+        color: var(--bs-text-light);
+        display: flex;
+        flex-direction: column;
+    }
+    .left-section .location {
+        text-align: center;
+        box-sizing: border-box;
+        padding: 6px;
+    }
+     .right-section {
+         width: 70%; /* O qualsiasi valore necessario */
+         display: flex;
+         flex-direction: column;
+         position: relative; /* Per posizionamento assoluto */
+         overflow: hidden; /* Evita sovrapposizioni indesiderate */
+     }
+
+
+     .appointments-container {
+         position: relative;
+         flex-grow: 1; /* Occupa tutto lo spazio disponibile */
+         width: 100%; /* Garantisce che abbia la stessa dimensione del .right-section */
+         box-sizing: border-box; /* Includi padding/border nelle dimensioni */
+         margin-top: 6px;
+     }
+
+
+ .appointment {
+     position: absolute;
+     background-color: #a0c4ff;
+     color: white;
+     padding: 19px;
+     border-radius: 2px;
+     font-size: 0.9em;
+     white-space: nowrap;
+     overflow: hidden; /* Evita che il testo lungo esca */
+     box-sizing: border-box;
+     border: 1px solid #82b1ff;
+     transform: perspective(1px) translateZ(0);
+     box-shadow: 0 0 1px transparent;
+     transition-duration: 0.3s;
+     transition-property: box-shadow, transform;
+ }
+
+ .hours-scale {
+     width: 100%; /* Adegua alla larghezza di .right-section */
+     display: flex;
+     align-items: end;
+     justify-content: space-between; /* Distribuisci i marcatori orari */
+     padding: 2px;
+     box-sizing: border-box; /* Includi padding/border nelle dimensioni */
+ }
+
+ .hours-scale .hour-mark {
+     flex-grow: 1;
+     text-align: center;
+     padding: 5px 0;
+     border-left: 1px solid var(--bs-primary);
+     box-sizing: border-box;
+ }
+
+ .hours-scale .hour-mark:first-child {
+     border-left: none;
+ }
+ 
+ .app_annullati {
+     white-space: pre-line;
+     text-decoration-line: line-through;
+     text-decoration-style: dashed;
+     text-decoration-color: #888;
+ }
+ .appointment:hover {
+     cursor: pointer;
+     box-shadow: 1px 10px 10px -10px rgba(0, 0, 24, 0.5);
+     transform: scale(1.2);
+ }
+ /* Stile per il modale */
+ .modal-body p {
+ margin: 0.5rem 0;
+ }
+ /* Stile base del modale */
+ .modal {
+     background-color: rgba(0, 0, 0, 0.8); /* Sfondo semi-trasparente */
+ }
+
+ /* Contenitore del modulo (dialogo) */
+ .modal-dialog {
+     max-width: 700px; /* Larghezza massima */
+     margin: 5% auto; /* Centrato verticalmente e orizzontalmente */
+     border-radius: 12px;
+     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); /* Ombra moderna */
+ }
+
+ /* Contenuto del modale */
+ .modal-content {
+     background-color: #1e1e1e; /* Sfondo scuro */
+     border-radius: 12px;
+     color: #ffffff; /* Testo chiaro */
+     overflow: hidden;
+ }
+
+ /* Intestazione del modale */
+ .modal-header {
+     background-color: #2a2a2a; /* Sfondo più chiaro per l'intestazione */
+     padding: 1rem 1.5rem;
+     border-bottom: none;
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+ }
+
+ /* Titolo del modale */
+ .modal-title {
+     font-size: 1.3rem;
+     font-weight: bold;
+     color: #0d6efd; /* Colore primario (blu) per contrasto */
+ }
+
+ /* Bottone di chiusura */
+ .modal-header .btn-close {
+     filter: invert(1); /* Inversione del colore per visibilità su sfondo scuro */
+     opacity: 0.7;
+     transition: opacity 0.3s ease;
+ }
+
+ .modal-header .btn-close:hover {
+     opacity: 1;
+     background-color: #444; /* Sfondo di hover */
+     border-radius: 50%;
+     padding: 6px;
+ }
+
+ /* Corpo del modale */
+ .modal-body {
+     padding: 2rem 1.5rem;
+     font-size: 1rem;
+     line-height: 1.6;
+ }
+
+ /* Dettagli dell'appuntamento */
+ #eventDetails p {
+     margin-bottom: 0.8rem;
+     color: #dcdcdc; /* Testo leggermente più chiaro */
+ }
+
+ /* Pulsanti del footer */
+ .modal-footer {
+     background-color: #2a2a2a;
+     padding: 1rem 1.5rem;
+     border-top: none;
+     display: flex;
+     gap: 1rem;
+     justify-content: space-between;
+     align-items: center;
+ }
+
+ /* Bottone "Vai agli appuntamenti" */
+ #goToAppointmentsLink {
+     background-color: #0d6efd; /* Colore primario */
+     border: none;
+     padding: 0.5rem 1.2rem;
+     font-weight: bold;
+     transition: background-color 0.3s ease;
+ }
+
+ #goToAppointmentsLink:hover {
+     background-color: #0a58ca; /* Sfondo più scuro al hover */
+ }
+
+ /* Bottone "Elimina" */
+ #deleteAppointmentBtn {
+     background-color: #dc3545; /* Rosso di Bootstrap */
+     border: none;
+     padding: 0.5rem 1.2rem;
+     font-weight: bold;
+     transition: background-color 0.3s ease;
+ }
+
+ #deleteAppointmentBtn:hover {
+     background-color: #c82333; /* Sfondo più scuro al hover */
+ }
+ /* Animazione di ingresso del modale */
+ .modal.fade.show {
+     transition: opacity 0.3s ease-in-out;
+ }
+
+ .modal.show .modal-dialog {
+     transform: scale(1);
+     opacity: 1;
+ }
+
+ .modal.show .modal-backdrop {
+     animation: fadeIn 0.3s ease;
+ }
+
+
+ @keyframes fadeIn {
+     from { opacity: 0; }
+     to   { opacity: 1; }
+ }

@@ -1,0 +1,67 @@
+body {
+            background-color: #1e1e1e;
+            color: #f8f9fa;
+        }
+        .card {
+            background-color: #2c2c2c !important;
+            border-color: #444;
+        }
+        .btn-link.text-primary {
+            color: #0d6efd !important;
+        }
+        .bg-dark {
+        background-color: #1e1e1e !important;
+        }
+        .text-white {
+            color: #f8f9fa !important;
+        }
+        .form-control.bg-dark {
+            background-color: #1e1e1e;
+            color: #f8f9fa;
+            border-color: #444;
+        }
+        .btn.btn-primary {
+        background-color: #0d6efd !important; /* Blu chiaro */
+        border-color: #0d6efd !important;
+        color: white !important;
+        }
+
+        .btn.btn-primary:hover {
+            background-color: #0a58ca !important; /* Blu più scuro su hover */
+            border-color: #0a58ca !important;
+            color: white !important;
+        }
+        .form-label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        }
+
+        /* Stile per il file input */
+        input[type="file"] {
+            padding: 10px !important;
+            border-radius: 4px;
+        }
+        input[type="file"] {
+            background-color: #1e1e1e !important;
+            color: #f8f9fa !important;
+            border: 2px solid #444 !important;
+            padding: 10px !important;
+            border-radius: 4px !important;
+        }
+        .btn-link.text-primary {
+            font-size: 1.2rem; /* Dimensioni emoji */
+            padding: 0;
+        }
+
+        /* Distanza tra l'immagine e il like */
+        form.d-inline.mt-2 {
+            margin-top: 15px;
+        }
+        .form-control {
+            background-color: #5c5e62 !important;
+            color: white !important;
+        }
+        .form-select {
+            background-color: #5c5e62 !important;
+            color: white !important;
+        }
