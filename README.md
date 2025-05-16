@@ -1,6 +1,8 @@
 # OggiInLab
 OggiInLab è un'applicazione web sviluppata in PHP per la gestione di appuntamenti e orari in un laboratorio o ambiente simile (ad esempio, per corsi, attività di ricerca o prenotazioni). Il dashboard permette di visualizzare gli eventi su un calendario mensile, modificare o annullarli, e monitorare le notizie relative a modifiche o cancellazioni.
 
+![Anteprima del progetto](/assets/Screenshot.png)
+
 📌 Descrizione
 OggiInLab fornisce una dashboard per amministratori o utenti autorizzati, con funzionalità di gestione degli appuntamenti (creazione, modifica, annullamento), visualizzazione su un calendario interattivo e notifiche in tempo reale. Il sistema è stato realizzato utilizzando tecnologie moderne come PHP, MySQL, Bootstrap e JavaScript.
 
