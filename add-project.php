@@ -80,13 +80,15 @@ if (empty($_SESSION["alogin"])) {
         // Insert project if no errors
         if (empty($errors)) {
             try {
-                $sql_insert_project = "INSERT INTO progetto (nomeProgetto, idTutor, idEsperto, descProgetto) VALUES (:nome, :tutor_id, :esperto_id, :descrizione)";
+                $sql_insert_project = "INSERT INTO progetto (nomeProgetto, idTutor, idEsperto, descProgetto, startDate)
+                                    VALUES (:nome, :tutor_id, :esperto_id, :descrizione, :start_date)";
                 $stmt = $dbh->prepare($sql_insert_project);
                 $stmt->execute([
                     ':nome' => $nome_progetto,
                     ':tutor_id' => $id_tutor,
                     ':esperto_id' => $id_esperto,
-                    ':descrizione' => $desc_progetto
+                    ':descrizione' => $desc_progetto,
+                    ':start_date' => date('Y-m-d') // imposta la data odierna
                 ]);
 
                 echo "<div id='success-alert' class='alert alert-success'>Progetto aggiunto con successo!</div>";
