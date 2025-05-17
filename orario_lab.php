@@ -8,7 +8,10 @@
 
 include 'includes/config.php';
 session_start();
-
+if (empty($_SESSION["alogin"])) {
+    header("location: index.php");
+    exit();
+}
 // Definition of Time Slots (8 hours)
 $ore = [
     ['inizio' => '08:10', 'fine' => '09:10'],
