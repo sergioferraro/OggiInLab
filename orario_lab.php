@@ -13,16 +13,29 @@ if (empty($_SESSION["alogin"])) {
     exit();
 }
 // Definition of Time Slots (8 hours)
-$ore = [
-    ['inizio' => '08:10', 'fine' => '09:10'],
-    ['inizio' => '09:10', 'fine' => '10:10'],
-    ['inizio' => '10:10', 'fine' => '11:10'],
-    ['inizio' => '11:10', 'fine' => '12:10'],
-    ['inizio' => '12:10', 'fine' => '13:10'],
-    ['inizio' => '13:10', 'fine' => '14:10'],
-    ['inizio' => '14:10', 'fine' => '15:10'],
-    ['inizio' => '15:10', 'fine' => '16:10'],
-];
+try {
+    // PDO connection
+    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Query
+    $stmt = $dbh->query("SELECT DATE_FORMAT(inizio, '%H:%i') AS inizio, DATE_FORMAT(fine, '%H:%i') AS fine FROM fasce ORDER BY id");
+
+
+    // Empty array
+    $ore = [];
+
+    // Populate array
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $ore[] = [
+            'inizio' => $row['inizio'],
+            'fine'   => $row['fine']
+        ];
+    }
+
+} catch (PDOException $e) {
+    // Errors handle
+    echo "Errore di connessione o query: " . $e->getMessage();
+}
 // Days of the Week Mon-Sat
 global $giorni;
 $giorni = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
