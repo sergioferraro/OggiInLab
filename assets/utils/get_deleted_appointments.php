@@ -1,5 +1,10 @@
 <?php
 // get_deleted_appointments.php
+/*
+ * OggiInLab
+ * Copyright (c) 2025 Sergio Ferraro
+ * Licensed under the MIT License
+ */
 session_start();
 header('Content-Type: application/json');
 include "../../includes/config.php";
