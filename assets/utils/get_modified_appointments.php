@@ -1,17 +1,20 @@
 <?php
-// get_modified_appointments_authors.php
+// get_modified_appointments.php
+/*
+ * OggiInLab
+ * Copyright (c) 2025 Sergio Ferraro
+ * Licensed under the MIT License
+ */
 session_start();
 header('Content-Type: application/json');
-// Assicurati che il percorso al tuo file di configurazione sia corretto
+
 include "../../includes/config.php";
 
 try {
-    // Query per selezionare l'autore degli appuntamenti modificati
-    // Le condizioni sono:
-    // 1. L'ultima modifica è avvenuta dopo la data corrente (`appuntamento.lastModified > CURRENT_DATE`)
-    // 2. La data di ultima modifica è diversa dalla data di creazione (`appuntamento.lastModified <> appuntamento.creationDate`)
-    // Viene inclusa la JOIN con la tabella 'admin' come richiesto dall'utente,
-    // anche se per selezionare solo l'autore non sarebbe strettamente necessaria se l'autore esiste sempre in 'appuntamento'.
+    // Query to select the author of the modified appointments
+    // The conditions are:
+    // 1. The last modification occurred after the current date (`appuntamento.lastModified > CURRENT_DATE`)
+    // 2. The last modification date is different from the creation date (`appuntamento.lastModified <> appuntamento.creationDate`)
     $sql = "SELECT
                 admin.nomeCompleto AS autore,
                 progetto.nomeProgetto AS titolo,
@@ -31,14 +34,12 @@ try {
     $query = $dbh->prepare($sql);
     $query->execute();
 
-    // Recupera tutti i risultati come array associativo
+    // Fetches all results as an associative array
     $results = $query->fetchAll(PDO::FETCH_ASSOC);
 
-    // Verifica se sono stati trovati risultati
+    // Checks if any results were found
     if (!empty($results)) {
-        // Struttura i risultati in un array di autori
-        // htmlspecialchars non è strettamente necessario per un ID numerico,
-        // ma lo manteniamo per coerenza e sicurezza generale.
+        // Structures the results into an array of authors
         $authors = array_map(function($row) {
             return [
                 'autore' => htmlspecialchars($row['autore']),
@@ -50,19 +51,18 @@ try {
             ];
         }, $results);
 
-        // Restituisce i risultati in formato JSON con successo = true
+        // Returns the results in JSON format with success = true
         echo json_encode([
             'success' => true,
-            'authors' => $authors // Cambiato 'appointments' in 'authors' per riflettere il contenuto
+            'authors' => $authors 
         ]);
     } else {
-        // Nessun risultato trovato, restituisce successo = false e un messaggio vuoto
+        // No results found, returns success = false and an empty message
         echo json_encode(['success' => false, 'message' => 'Nessun appuntamento modificato ']);
     }
 
 } catch (PDOException $e) {
-    // Gestione degli errori di database
-    // Restituisce un messaggio di errore in formato JSON
+    // Database error handling
     echo json_encode(['error' => $e->getMessage()]);
 }
 ?>
