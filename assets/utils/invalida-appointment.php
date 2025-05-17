@@ -1,4 +1,5 @@
 <?php
+// invalida-appointment.php
 /*
  * OggiInLab
  * Copyright (c) 2025 Sergio Ferraro
@@ -37,7 +38,7 @@ if (!isset($_POST['idCorso']) || !isset($_POST['idAppuntamento']) || !isset($_PO
 }
 
 try {
-    // Recupera i dettagli dell'appuntamento corrente
+    // Retrieve the details of the current appointment
     $sqlCheck = "SELECT data, luogo, oraInizio, oraFine FROM appuntamento 
                  WHERE idAppuntamento = :idAppuntamento AND idCorso = :idCorso";
     $stmtCheck = $dbh->prepare($sqlCheck);
@@ -45,7 +46,7 @@ try {
     $appointmentDetails = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
     if ($appointmentDetails) {
-        // Verifica se esiste un appuntamento già cancellato con gli stessi parametri
+        // Check if a previously deleted appointment exists with the same parameters
         $sqlExisting = "SELECT idAppuntamento FROM appuntamento 
                         WHERE data = :data 
                           AND luogo = :luogo 
@@ -64,14 +65,14 @@ try {
         $existing = $stmtExisting->fetch(PDO::FETCH_ASSOC);
 
         if ($existing) {
-            // Elimina definitivamente l'appuntamento esistente
+            // Permanently delete the existing appointment
             $sqlDelete = "DELETE FROM appuntamento WHERE idAppuntamento = :idAppuntamento";
             $stmtDelete = $dbh->prepare($sqlDelete);
             $stmtDelete->execute(['idAppuntamento' => $existing['idAppuntamento']]);
         }
     }
 
-    // Esegui la soft delete dell'appuntamento
+    // Perform a soft delete of the appointment
     $sql = "UPDATE appuntamento 
             SET isDeleted = 1 
             WHERE idAppuntamento = :idAppuntamento 
