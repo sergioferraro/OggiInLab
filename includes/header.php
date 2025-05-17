@@ -57,7 +57,7 @@
 
 <!-- Impostazioni Dropdown -->
 <li class="nav-item dropdown">
-    <a href="#" class="nav-link dropdown-toggle <?= (in_array(basename($_SERVER['PHP_SELF']), ['add_aula.php', 'orario_lab.php', 'servizi.php', 'manage_docenti.php', 'calend_ann.php'])) ? 'active' : '' ?>" 
+    <a href="#" class="nav-link dropdown-toggle <?= (in_array(basename($_SERVER['PHP_SELF']), ['add_aula.php', 'orario_lab.php', 'servizi.php', 'manage_docenti.php', 'calend_ann.php','campanella.php'])) ? 'active' : '' ?>" 
        data-bs-toggle="dropdown" aria-expanded="false">Impostazioni</a>
     <ul class="dropdown-menu">
         <li><a href="add_aula.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'add_aula.php') ? 'active' : '' ?>">Gestisci aule</a></li>
@@ -65,6 +65,7 @@
         <li><a href="servizi.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'servizi.php') ? 'active' : '' ?>">Servizi e Manut.</a></li>
         <li><a href="manage_docenti.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'manage_docenti.php') ? 'active' : '' ?>">Gestisci docenti</a></li>
         <li><a href="calend_ann.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'calend_ann.php') ? 'active' : '' ?>">Calendario scolastico</a></li>
+        <li><a href="campanella.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'campanella.php') ? 'active' : '' ?>">Campanella</a></li>
     </ul>
 </li>
 
