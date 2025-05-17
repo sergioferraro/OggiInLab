@@ -1,5 +1,10 @@
 <?php
-// delete-project.php
+// delete-docente.php
+/*
+ * OggiInLab
+ * Copyright (c) 2025 Sergio Ferraro
+ * Licensed under the MIT License
+ */
 session_start();
 header('Content-Type: application/json');
 include "../../includes/config.php"; // Assuming this file starts session and connects to DB
