@@ -1,4 +1,5 @@
 <?php
+// index.php
 /*
  * OggiInLab
  * Copyright (c) 2025 Sergio Ferraro
@@ -9,16 +10,16 @@ include('includes/config.php');
 if(isset($_POST['login'])) {
     $username = $_POST['userName'];
     $password_input = $_POST['password'];
-    // Query per recuperare l'utente per username
+    // Fetch user by userName
     $sql = "SELECT id,userName, Password, nomeCompleto,is_super_admin FROM admin WHERE userName=:username";
     $query = $dbh->prepare($sql);
     $query->bindParam(':username', $username, PDO::PARAM_STR);
     $query->execute();
 
     if ($row = $query->fetch(PDO::FETCH_ASSOC)) {
-        // Confronta la password con password_verify()
+        // Compare password using password_verify()
         if (password_verify($password_input, $row['Password'])) {
-            // Accesso riuscito
+            // Granted
             $_SESSION['alogin'] = $username;
             $_SESSION['nomeCompleto'] = $row['nomeCompleto'];
             $_SESSION['id'] = $row['id'];
@@ -41,7 +42,7 @@ if(isset($_POST['login'])) {
     <meta name="description" content="" />
     <meta name="author" content="" />
     <title>OggiInLab | Indice</title>
-    <!-- Tema scuro con Bootswatch Cyborg -->
+    <!-- Dark theme Bootswatch Cyborg -->
     <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
     <!-- FONT AWESOME STYLE  -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
