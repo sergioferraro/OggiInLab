@@ -51,6 +51,7 @@
         <li><a href="all_project.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'all_project.php') ? 'active' : '' ?>">Progetti terminati</a></li>
         <li><a href="add-project.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'add-project.php') ? 'active' : '' ?>">Aggiungi progetto</a></li>
         <li><a href="prenota-deleted.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'prenota-deleted.php') ? 'active' : '' ?>">Prenotazioni annullate</a></li>
+        <li><a href="campanella.php" class="dropdown-item <?= (basename($_SERVER['PHP_SELF']) == 'campanella.php') ? 'active' : '' ?>">Campanella</a></li>
     </ul>
 </li>
 
