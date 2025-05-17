@@ -54,7 +54,7 @@
         </p>
         <ul>
             <li><strong>Responsabile:</strong> Sergio Ferraro</li>
-            <li><strong>Email:</strong> sergio.ferraro@lmedi.org</li>
+            <li><strong>Email:</strong> [email]</li>
         </ul>
 
         <p class="mt-4">
