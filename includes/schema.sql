@@ -191,10 +191,51 @@ CREATE TABLE `servizi` (
   `serviziProj` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Struttura della tabella `fasce`
+--
+
+CREATE TABLE `fasce` (
+  `id` int NOT NULL,
+  `inizio` time NOT NULL,
+  `fine` time NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dump dei dati per la tabella `fasce`
+--
+
+INSERT INTO `fasce` (`id`, `inizio`, `fine`) VALUES
+(1, '08:10:00', '09:10:00'),
+(2, '09:10:00', '10:10:00'),
+(3, '10:10:00', '11:10:00'),
+(4, '11:10:00', '12:10:00'),
+(5, '12:10:00', '13:10:00'),
+(6, '13:10:00', '14:10:00'),
+(7, '14:10:00', '15:10:00'),
+(8, '15:00:00', '16:00:00');
 
 --
 -- Indici per le tabelle scaricate
 --
+
+--
+-- Indici per le tabelle `fasce`
+--
+ALTER TABLE `fasce`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- AUTO_INCREMENT per le tabelle scaricate
+--
+
+--
+-- AUTO_INCREMENT per la tabella `fasce`
+--
+ALTER TABLE `fasce`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+COMMIT;
+
 
 --
 -- Indici per le tabelle `admin`
