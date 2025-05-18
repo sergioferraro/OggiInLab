@@ -741,6 +741,7 @@ if (!isset($_SESSION['csrf_token'])) {
                     }
                 }).done(function(response) {
                     if (response.success) {
+                        $('meta[name="csrf-token"]').attr('content', response.csrf_token);
                         // Remove the row and restore the button
                         $button.closest('tr').slideUp(300, function() {
                             $(this).remove();

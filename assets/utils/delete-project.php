@@ -27,6 +27,8 @@ if (empty($csrfToken) || $csrfToken !== $_SESSION['csrf_token']) {
     exit;
 }
 unset($_SESSION['csrf_token']); // Invalidate token
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32)); // Generate new one
+
 try {
     // Sanitize input
     $projectId = (int) filter_input(INPUT_POST, 'delete_id', FILTER_VALIDATE_INT);
@@ -38,9 +40,14 @@ try {
     $sql = "DELETE FROM progetto WHERE idProgetto = :id";
     $stmt = $dbh->prepare($sql);
     $stmt->execute([':id' => $projectId]);
-
     if ($stmt->rowCount() > 0) {
-        echo json_encode(['success' => true, 'message' => 'Progetto eliminato']);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Progetto eliminato',
+            'csrf_token' => $_SESSION['csrf_token'] // new token
+        ]);
+        
     } else {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Progetto non trovato']);

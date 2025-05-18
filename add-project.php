@@ -344,7 +344,44 @@ if (empty($_SESSION["alogin"])) {
  
 
 <script>
+ function addDocente(type) {
+        const form = type === 'tutor' ? document.getElementById('tutorForm') : document.getElementById('espertoForm');
+        const formData = new FormData(form);
 
+        fetch('assets/utils/add_docente.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Risposta ricevuta:", data);
+            if (data.success) {
+                const selectId = type === 'tutor' ? 'tutorSelect' : 'espertoSelect';
+                const select = document.getElementById(selectId);
+
+                const option = new Option(data.docente.cognome, data.docente.id, true, true);
+                select.add(option);
+                select.value = data.docente.id;
+
+                // Seleziona il radio "existing"
+                document.getElementById(`select_${type}`).checked = true;
+
+                // Chiudi il modale
+                const modalId = `#${type}Modal`;
+                $(modalId).modal('hide');
+
+
+                // Pulisce il form
+                form.reset();
+            } else {
+                alert('Errore: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Errore nella richiesta:', error);
+            alert("Errore durante l'invio dei dati.");
+        });
+    }
 document.addEventListener('DOMContentLoaded', function() {
      // Gestione per il form del tutor
      const tutorForm = document.getElementById('tutorForm');
@@ -383,44 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function addDocente(type) {
-        const form = type === 'tutor' ? document.getElementById('tutorForm') : document.getElementById('espertoForm');
-        const formData = new FormData(form);
-
-        fetch('assets/utils/add_docente.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log("Risposta ricevuta:", data);
-            if (data.success) {
-                const selectId = type === 'tutor' ? 'tutorSelect' : 'espertoSelect';
-                const select = document.getElementById(selectId);
-
-                const option = new Option(data.docente.cognome, data.docente.id, true, true);
-                select.add(option);
-                select.value = data.docente.id;
-
-                // Seleziona il radio "existing"
-                document.getElementById(`select_${type}`).checked = true;
-
-                // Chiudi il modale
-                const modalId = `#${type}Modal`;
-                $(modalId).modal('hide');
-
-
-                // Pulisce il form
-                form.reset();
-            } else {
-                alert('Errore: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Errore nella richiesta:', error);
-            alert("Errore durante l'invio dei dati.");
-        });
-    }
+   
 });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>

@@ -600,6 +600,7 @@ if (!isset($_SESSION['csrf_token'])) {
             },
             success: function(response) {
                 if (response.success) {
+                    $('meta[name="csrf-token"]').attr('content', response.csrf_token);
                     $button.closest('tr').slideUp(300, function() {
                         $(this).remove();
                         // Update project count

@@ -70,6 +70,8 @@ CREATE TABLE `aula` (
   `pcDocente` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+INSERT INTO `aula` (`idAula`, `nAula`, `nPosti`, `computer`, `richiedeAt`, `lim`, `pcDocente`) VALUES
+(1, 'aula generica', 27, 0, 0, 0, 0);
 
 --
 -- Struttura della tabella `calendario`
@@ -151,15 +153,6 @@ CREATE TABLE `posts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dump dei dati per la tabella `posts`
---
-
-INSERT INTO `posts` (`id`, `user_id`, `content`, `image_url`, `created_at`) VALUES
-(12, 5, 'ciao', NULL, '2025-05-16 17:43:48'),
-(13, 5, 'ciao', 'uploads/68277af9bcc6d.png', '2025-05-16 17:50:50');
-
-
---
 -- Struttura della tabella `progetto`
 --
 
@@ -175,7 +168,9 @@ CREATE TABLE `progetto` (
   `endDate` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-
+INSERT INTO `progetto` (`idProgetto`, `nomeProgetto`, `idTutor`, `idEsperto`, `descProgetto`, `cnp`, `cup`, `startDate`, `endDate`) VALUES
+(1, 'prenotazione', NULL, NULL, 'prenotaaulagiornaliero', NULL, NULL, '2025-04-23', NULL),
+(2, 'orario', NULL, NULL, 'orario delle lezioni', NULL, NULL, '2024-09-09', '2025-06-07');
 --
 -- Struttura della tabella `servizi`
 --
@@ -199,7 +194,7 @@ CREATE TABLE `fasce` (
   `id` int NOT NULL,
   `inizio` time NOT NULL,
   `fine` time NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dump dei dati per la tabella `fasce`
