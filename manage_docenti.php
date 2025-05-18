@@ -18,19 +18,19 @@ if (empty($_SESSION["alogin"])) {
     header("location: index.php");
     exit();
 }
-// Gestione del toggle dell'attivazione/disattivazione
+// Handle toggle activate/deactivate
 if (isset($_GET['toggle_active'])) {
     $id = $_GET['id'];
     $token = $_GET['_token'] ?? '';
     
-    // Verifica CSRF token
+    // Check CSRF token
     if ($token !== $_SESSION['csrf_token']) {
         echo json_encode(['success' => false, 'message' => 'CSRF token invalido']);
         exit;
     }
 
     try {
-        // Ottieni lo stato corrente
+        // Retrieve current status
         $sql = "SELECT isDeleted FROM docente WHERE idDocente = ?";
         $query = $dbh->prepare($sql);
         $query->execute([$id]);
@@ -39,12 +39,12 @@ if (isset($_GET['toggle_active'])) {
         // Flip the status
         $newStatus = ($currentStatus === '0') ? 1 : 0;
 
-        // Aggiorna il documento
+        // Update
         $updateSql = "UPDATE docente SET isDeleted = ? WHERE idDocente = ?";
         $updateQuery = $dbh->prepare($updateSql);
         $updateQuery->execute([$newStatus, $id]);
 
-        // Ottieni il nuovo stato e contatori
+        // Get new status
         $activeCount = getActiveCount();
         $inactiveCount = getInactiveCount();
 
@@ -61,7 +61,7 @@ if (isset($_GET['toggle_active'])) {
     exit();
 }
 
-// Helper per contare i docenti attivi
+// Helper count active teacher
 function getActiveCount() {
     global $dbh;
     $sql = "SELECT COUNT(*) FROM docente WHERE isDeleted = 0";
@@ -70,7 +70,7 @@ function getActiveCount() {
     return (int)$query->fetchColumn();
 }
 
-// Helper per contare i docenti disattivati
+// Helper count deactive teachers
 function getInactiveCount() {
     global $dbh;
     $sql = "SELECT COUNT(*) FROM docente WHERE isDeleted = 1";
@@ -78,7 +78,7 @@ function getInactiveCount() {
     $query->execute();
     return (int)$query->fetchColumn();
 }
-// Endpoint per caricare docenti disattivati
+// Endpoint load deactivated teachers
 if (isset($_GET['load_inactive'])) {
     try {
         $sql = "SELECT idDocente, nome, cognome FROM docente WHERE isDeleted=1";
@@ -118,16 +118,16 @@ if (isset($_GET['load_inactive'])) {
     exit();
 }
 
-// Endpoint per contare docenti disattivati
+// Endpoint count deactivate teachers
 if (isset($_GET['update_inactive'])) {
     try {
         $sql = "SELECT COUNT(*) FROM docente WHERE isDeleted=1";
         $query = $dbh->prepare($sql);
         $query->execute();
-        echo $query->fetchColumn(); // Restituisce solo il numero
+        echo $query->fetchColumn();
     } catch (PDOException $e) {
         error_log("Error counting inactive docenti: " . $e->getMessage());
-        echo 0; // Valore di fallback in caso di errore
+        echo 0; // fallback in case of error
     }
     exit();
 }
@@ -174,10 +174,10 @@ if (isset($_GET['update_active'])) {
         $sql = "SELECT COUNT(*) FROM docente WHERE isDeleted=0";
         $query = $dbh->prepare($sql);
         $query->execute();
-        echo $query->fetchColumn(); // Restituisce solo il numero
+        echo $query->fetchColumn();
     } catch (PDOException $e) {
         error_log("Error counting active docenti: " . $e->getMessage());
-        echo 0; // Valore di fallback in caso di errore
+        echo 0; // fallback in case of error
     }
     exit();
 }
@@ -495,7 +495,7 @@ function updateInactiveCount() {
         const count = parseInt(data);
         $('#inactiveCount').text(isNaN(count) ? 0 : count);
     }).fail(function() {
-        $('#inactiveCount').text(0); // Gestisci errori di rete
+        $('#inactiveCount').text(0); // handle network errors
     });
 }
 
@@ -513,7 +513,7 @@ function updateActiveCount() {
         const count = parseInt(data);
         $('#docentiCount').text(isNaN(count) ? 0 : count);
     }).fail(function() {
-        $('#docentiCount').text(0); // Gestisci errori di rete
+        $('#docentiCount').text(0); // handle network errors
     });
 }
 $(document).ready(function() {

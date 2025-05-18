@@ -1,5 +1,5 @@
 # OggiInLab
-OggiInLab è un'applicazione web sviluppata in PHP per la gestione di appuntamenti e orari in un laboratorio o ambiente simile (ad esempio, per corsi, attività di ricerca o prenotazioni). Il dashboard permette di visualizzare gli eventi su un calendario mensile, modificare o annullarli, e monitorare le notizie relative a modifiche o cancellazioni.
+OggiInLab è un'applicazione web sviluppata in PHP per la gestione di appuntamenti e orari in un laboratorio o ambiente simile (ad esempio, per corsi, scuola secondaria). Il dashboard permette di visualizzare gli eventi su un calendario mensile, modificare o annullarli, e monitorare le notizie relative a modifiche o cancellazioni.
 
 ![Anteprima del progetto](/assets/Screenshot.png)
 
@@ -46,8 +46,9 @@ Passaggi
 Clona il repository:
 git clone https://github.com/sergioferraro/oggiinlab.git
 Configura il file includes/config.php con le credenziali del database.
-Importa lo schema SQL (se necessario):
-SOURCE includes/schema.sql;
+Configura il file privacy.php
+Importa lo schema SQL : includes/schema.sql;
+aggiungi almeno un amministratore con php password_hash
 
 🗄 Struttura del Database
 Il progetto utilizza un database MySQL con le seguenti tabelle:
@@ -56,7 +57,7 @@ id: ID dell'utente amministratore (PK).
 nomeCompleto: Nome completo dell'amministratore.
 adminEmail: Email dell'amministratore (UNIQUE).
 userName: Username (UNIQUE).
-password: Password crittografata (opzionale).
+password: Password crittografata (password_hash).
 updationDate: Data ultima modifica (timestamp).
 is_super_admin: Flag per utente super admin (0/1).
 2. appuntamento
@@ -124,6 +125,7 @@ serviziOraInizio, serviziOraFine: Orari di inizio e fine (HH:MM).
 serviziDescrizione: Descrizione del servizio.
 serviziLuogo: ID dell'aula associata (FK a aula.idAula).
 serviziProj: ID del progetto associato (FK a progetto.idProgetto).
+
 🔗 Relazioni tra Tabelle
 appuntamento.idCorso → progetto.idProgetto
 appuntamento.luogo → aula.idAula
@@ -135,11 +137,6 @@ comments.post_id → posts.id
 comments.user_id → admin.id
 likes.post_id → posts.id
 likes.user_id → admin.id
-🧩 Note Importanti
-I campi con FOREIGN KEY stabiliscono collegamenti logici tra tabelle.
-Campi come isDeleted, lastModified, e created_at gestiscono lo stato e la cronologia degli eventi.
-Il database include anche funzionalità per commenti, like, e gestione di post didattici.
-Avvia il server web e accedi a dashboard.php.
 
 📝 Uso
 Login
@@ -168,7 +165,7 @@ Linee guida:
 Rispetta lo stile di codice esistente.
 Aggiungi commenti e documentazione quando necessario.
 Testa le funzionalità prima di inviare il PR.
+
 📄 Licenza
 Questo progetto è rilasciato sotto la licenza MIT License.
-
 Per maggiori dettagli, consulta il file LICENSE.
