@@ -163,10 +163,12 @@ foreach ($appointments as $appt) {
                 </div>
                 <div class="news-container">
                     <h4>News</h4>
-                    <div class="app_annullati">
-                        </div>
-                        <div class="app_modificati"></div>
-                        <div class="app_creati"></div>
+                    <label><input type="checkbox" id="filter-annullati"> Annullati</label>
+                    <label><input type="checkbox" id="filter-modificati"> Modificati</label>
+                    <label><input type="checkbox" id="filter-creati"> Creati</label>
+                    <div class="app_annullati"></div>
+                    <div class="app_modificati"></div>
+                    <div class="app_creati"></div>
                 </div>
             </div>
             <div class="col-md-8 col-sm-12">
@@ -569,6 +571,33 @@ appointmentDetailsEditModalElement.addEventListener('shown.bs.tab', function (ev
         loadAppuntamentiAnnullati();
         loadAppuntamentiModificati();
         loadAppuntamentiCreati();
+        document.querySelectorAll('.news-container input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const type = checkbox.id.replace('filter-', '');
+            const section = document.querySelector(`.app_${type}`);
+            if (checkbox.checked) {
+                section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
+            }
+            });
+        });
+
+        // Imposta la visibilità iniziale delle sezioni
+        document.querySelectorAll('.news-container input[type="checkbox"]').forEach(checkbox => {
+            if (checkbox.id === 'filter-annullati') {  // Solo questa checkbox è attiva di default
+                checkbox.checked = true;
+            } else {
+                checkbox.checked = false;
+            }
+            const type = checkbox.id.replace('filter-', '');
+            const section = document.querySelector(`.app_${type}`);
+            if (checkbox.checked) {
+                section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
+            }
+        });
         function formatDateLocal(date) {
         const pad = n => String(n).padStart(2, '0');
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
