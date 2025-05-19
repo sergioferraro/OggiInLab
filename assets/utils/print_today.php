@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 date_default_timezone_set('Europe/Rome');
 function clean_text($text) {
     // Replace Special Characters with Spaces or Safe Versions
-    $text = str_replace(array("\n", "\r", "|","’"), ' ', $text);
+    $text = str_replace(array("\n", "\r", "|","’","à"), ' ', $text);
     return $text;
 }
 include "../../includes/config.php";
@@ -30,7 +30,7 @@ $stmt = $dbh->prepare("
     FROM appuntamento
     LEFT JOIN aula ON aula.idAula = appuntamento.luogo
     LEFT JOIN progetto ON appuntamento.idCorso = progetto.idProgetto
-    WHERE data = :data
+    WHERE data = :data AND isDeleted=0
     ORDER BY appuntamento.oraInizio, aula.nAula
 ");
 $stmt->bindParam(':data', $dataStampa);
@@ -80,7 +80,7 @@ function create_ascii_table($appuntamenti) {
 
     // Appointment Rows
     foreach ($appuntamenti as $app) {
-        $luogo = $app['luogo'];
+        $luogo = $app['luogo'] ?? ''; 
         $titolo_raw = (empty($app['descrizione'])) ? $app['corso'] : $app['descrizione'];
         $titolo = clean_text($titolo_raw);
 
@@ -178,11 +178,11 @@ function create_ascii_list_table($appuntamenti) {
             // Truncate the Title to 23 Characters and Add "..."
             $desc_visualizzata = substr($desc_visualizzata, 0, 23) . '...';
         }
-        $table .= "|" . str_pad($app['corso'], $col_progetto, " ", STR_PAD_RIGHT)
-                 . "|" . str_pad($app['luogo'], $col_luogo, " ", STR_PAD_RIGHT)
-                 . "|" . str_pad($app['oraInizio'], $col_inizio, " ", STR_PAD_RIGHT)
-                 . "|" . str_pad($app['oraFine'], $col_fine, " ", STR_PAD_RIGHT)
-                 . "|" . str_pad($desc_visualizzata, $col_descrizione, " ", STR_PAD_RIGHT) . "|\n";
+        $table .= "|" . str_pad($app['corso'] ?? '', $col_progetto, " ", STR_PAD_RIGHT)
+             . "|" . str_pad($app['luogo'] ?? '', $col_luogo, " ", STR_PAD_RIGHT)
+             . "|" . str_pad($app['oraInizio'], $col_inizio, " ", STR_PAD_RIGHT)
+             . "|" . str_pad($app['oraFine'], $col_fine, " ", STR_PAD_RIGHT)
+             . "|" . str_pad($desc_visualizzata, $col_descrizione, " ", STR_PAD_RIGHT) . "|\n";
     }
 
     // Bottom border
