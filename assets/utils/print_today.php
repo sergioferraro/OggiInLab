@@ -9,6 +9,7 @@ date_default_timezone_set('Europe/Rome');
 mb_internal_encoding('UTF-8');
 
 // Function to handle multibyte string padding (since PHP doesn't have mb_str_pad)
+if(!function_exists('mb_str_pad')){
 function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_RIGHT) {
     $input_len = mb_strlen($input);
     $pad_len = mb_strlen($pad_string);
@@ -31,6 +32,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     } else { // STR_PAD_RIGHT
         return $input . mb_substr($padded, 0, $need_pad_chars);
     }
+}
 }
 
 

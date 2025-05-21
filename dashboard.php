@@ -128,6 +128,11 @@ foreach ($appointments as $appt) {
     <link rel="stylesheet" href="assets/css/dash.css" type='text/css' />
 </head>
 <style>
+    #clock {
+        font-family: Monospace;
+        font-size: 2em;
+        text-align: center;
+        }
     .form-label {
         color: gray;
     }
@@ -143,6 +148,8 @@ foreach ($appointments as $appt) {
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <h2 class="mb-0" id="calendar-title">Aprile 2025</h2>
+                    <i class="fas fa-clock icon-clock"><span> </span><span id="clock"></span> <!-- Ora dinamica --></i> <!-- Icona -->
+                    
                     <div class="btn-group">
                         <button class="btn btn-outline-primary" id="prev">&laquo; Prec</button>
                         <button class="btn btn-primary" id="today">Oggi</button>
@@ -521,13 +528,13 @@ appointmentDetailsEditModalElement.addEventListener('shown.bs.tab', function (ev
                     output += '*' +`${app.autore}\t` +'ha modificato ' + `${app.titolo}` + ', descrizione: ' +`${app.descrizione}`+ ', nuova data: ' +
                     `${new Date(app.appData).toLocaleDateString('it-IT', {day: 'numeric', month: 'long'})}\t` +
                     `${app.oraInizio.substring(0,5)}` +'-'+
-                    `${app.oraFine.substring(0,5)}` + '\n';
+                    `${app.oraFine.substring(0,5)}` + '<br>';
                 });
                 messaggio = output;
                 } else {
                 messaggio = response.message || 'Errore non specificato';
                 }
-                document.querySelector('.app_modificati').textContent = messaggio;
+                document.querySelector('.app_modificati').innerHTML = messaggio;
             } else {
                 document.querySelector('.app_modificati').textContent = 'Errore di rete: ' + this.statusText;
             }
@@ -545,21 +552,24 @@ appointmentDetailsEditModalElement.addEventListener('shown.bs.tab', function (ev
                 const response = JSON.parse(this.responseText);
                 let messaggio;
                 if (response.error) {
-                messaggio = 'Errore: ' + response.error;
+                    messaggio = 'Errore: ' + response.error;
                 } else if (response.success) {
-                let output = '';
-                response.authors.forEach(app => {
-                    output += '*' +`${app.autore}\t` +'ha creato ' + `${app.titolo}` + ', descrizione: ' +`${app.descrizione}`+ ', nuova data: ' +
-                    `${new Date(app.appData).toLocaleDateString('it-IT', {day: 'numeric', month: 'long'})}\t` +
-                    `${app.oraInizio.substring(0,5)}` +'-'+
-                    `${app.oraFine.substring(0,5)}` + '\n';
-                });
-                messaggio = output;
+                    let output = '';
+                    response.authors.forEach(app => {
+                        output += '*' + `${app.autore}\t` + 
+                                'ha creato ' + `${app.titolo}` + 
+                                ', descrizione: ' + `${app.descrizione}` + 
+                                ', nuova data: ' +
+                                `${new Date(app.appData).toLocaleDateString('it-IT', {day: 'numeric', month: 'long'})}\t` +
+                                `${app.oraInizio.substring(0,5)}` + '-' +
+                                `${app.oraFine.substring(0,5)}` + '<br>'; // Usa <br> invece di \n
+                    });
+                    messaggio = output;
                 } else {
-                messaggio = response.message || 'Errore non specificato';
+                    messaggio = response.message || 'Errore non specificato';
                 }
-                document.querySelector('.app_creati').textContent = messaggio;
-            } else {
+                document.querySelector('.app_creati').innerHTML = messaggio; // Usa innerHTML
+            }    else {
                 document.querySelector('.app_creati').textContent = 'Errore di rete: ' + this.statusText;
             }
             };
@@ -947,6 +957,15 @@ calendarDaysPlaceholder.appendChild(grid);
             window.addEventListener('resize', () => {
    
 });
+function updateClock() {
+            const now = new Date();
+            let hours = String(now.getHours()).padStart(2, '0');
+            let minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}`;
+        }
+
+        setInterval(updateClock, 60000);
+        updateClock();
 </script>
     <?php include 'includes/footer.php';?>
 </body>
