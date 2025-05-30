@@ -668,9 +668,10 @@ if (!isset($_SESSION['csrf_token'])) {
                                 if(response.success) {
                                     var htmlContent = '<table class="table table-bordered">';
                                     htmlContent += '<thead><tr><th>Data</th><th>Ora Inizio</th><th>Ora Fine</th><th>Luogo</th><th>Azioni</th></tr></thead><tbody>';
+                                    const start = new Date(`${appointment.data}T${appointment.oraInizio}`);
                                     $.each(response.appointments, function(index, appointment) {
                                         htmlContent += '<tr>';
-                                        htmlContent += '<td>' + appointment.data + '</td>';
+                                        htmlContent += '<td>' + start.toLocaleDateString('it-IT') + '</td>';
                                         htmlContent += '<td>' + appointment.oraInizio + '</td>';
                                         htmlContent += '<td>' + appointment.oraFine + '</td>';
                                         htmlContent += '<td>' + (appointment.luogo ? appointment.luogo : 'N/D') + '</td>';
