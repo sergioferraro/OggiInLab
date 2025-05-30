@@ -205,7 +205,12 @@ function create_ascii_list_table($appuntamenti) {
             // Truncate the Title to 23 Characters and Add "..."
             $desc_visualizzata = mb_substr($desc_visualizzata, 0, 23) . '...';
         }
-        $table .= "|" . mb_str_pad($app['corso'] ?? '', $col_progetto, " ", STR_PAD_RIGHT)
+        $corso_visualizzato_nc=$app['corso'];
+        $corso_visualizzato=$corso_visualizzato_nc;
+        if(mb_strlen($corso_visualizzato)>26){
+            $corso_visualizzato=mb_substr($corso_visualizzato,0,23) . '...';
+        }
+        $table .= "|" . mb_str_pad($corso_visualizzato, $col_progetto, " ", STR_PAD_RIGHT)
                  . "|" . mb_str_pad($app['luogo'] ?? '', $col_luogo, " ", STR_PAD_RIGHT)
                  . "|" . str_pad($app['oraInizio'], $col_inizio, " ", STR_PAD_RIGHT)
                  . "|" . str_pad($app['oraFine'], $col_fine, " ", STR_PAD_RIGHT)
