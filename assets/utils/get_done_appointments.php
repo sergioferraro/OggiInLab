@@ -2,7 +2,7 @@
 // get_done_appointments.php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 include "../../includes/config.php";
@@ -30,7 +30,8 @@ try {
 					JOIN aula ON appuntamento.luogo = aula.idAula
                     WHERE 
                 appuntamento.idCorso = ?  -- Fixed case sensitivity here
-                AND appuntamento.isDeleted = 0;"; // Added space for clarity
+                AND appuntamento.isDeleted = 0
+                ORDER BY data;"; // Added space for clarity
 
     $stmt = $dbh->prepare($sql);
     $stmt->execute([$projectId]);

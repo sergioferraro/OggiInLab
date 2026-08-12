@@ -2,7 +2,7 @@
 // servizi.php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 
@@ -37,7 +37,7 @@ try {
     $aule = $stmtAula->fetchAll(PDO::FETCH_ASSOC);
 
     // Fetch all available projects for the dropdown
-    $stmtProgetto = $dbh->query("SELECT idProgetto, nomeProgetto FROM progetto ORDER BY nomeProgetto");
+    $stmtProgetto = $dbh->query("SELECT idProgetto, nomeProgetto, endDate FROM progetto WHERE endDate > CAST(CURRENT_TIMESTAMP AS DATE) OR endDate IS NULL ORDER BY nomeProgetto");
     $progetti = $stmtProgetto->fetchAll(PDO::FETCH_ASSOC);
 
 } catch(PDOException $e) {
@@ -49,12 +49,17 @@ try {
 $errors = [];
 $success = '';
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['aggiungiServizio'])) {
-    $serviziData = trim($_POST['serviziData']);
+    // CSRF validation
+    $postedToken = $_POST['_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'], $postedToken)) {
+        $errors[] = "Token di sicurezza non valido. Riprova.";
+    } else {
+        $serviziData = trim($_POST['serviziData']);
     $serviziOraInizio = trim($_POST['serviziOraInizio']);
     $serviziOraFine = trim($_POST['serviziOraFine']);
     $serviziDescrizione = trim($_POST['serviziDescrizione']);
     $serviziLuogo = intval($_POST['serviziLuogo']);
-    $serviziProj = !empty($_POST['serviziProj']) ? intval($_POST['serviziProj']) : null;
+    $serviziProj = isset($_POST['serviziProj']) && $_POST['serviziProj'] !== '' ? intval($_POST['serviziProj']) : null;
 
     // Validation
     if (empty($serviziData)) {
@@ -104,7 +109,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['aggiungiServizio'])) {
             $stmt->bindParam(':serviziOraFine', $serviziOraFine, PDO::PARAM_STR);
             $stmt->bindParam(':serviziDescrizione', $serviziDescrizione, PDO::PARAM_STR);
             $stmt->bindParam(':serviziLuogo', $serviziLuogo, PDO::PARAM_INT);
-            $stmt->bindParam(':serviziProj', $serviziProj, PDO::PARAM_INT);
+            if ($serviziProj !== null) {
+                $stmt->bindParam(':serviziProj', $serviziProj, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue(':serviziProj', null, PDO::PARAM_NULL);
+            }
 
             $success = $stmt->execute() ? "Servizio aggiunto con successo." : "Errore nell'aggiunta del servizio.";
         } catch (PDOException $e) {
@@ -112,119 +121,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['aggiungiServizio'])) {
             $errors[] = "Errore del database durante l'inserimento del servizio.";
         }
     }
+    } // endif CSRF
 }
-?>
 
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-    <title>OggiInLab | Servizi</title>
-    <!-- Dark theme Bootswatch Cyborg -->
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
-    <style>
-        body {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-        }
-        .card {
-            background-color: #2c2c2c !important;
-            border-color: #444;
-        }
-        .btn-link.text-primary {
-            color: #0d6efd !important;
-        }
-        .bg-dark {
-        background-color: #1e1e1e !important;
-        }
-        .text-white {
-            color: #f8f9fa !important;
-        }
-        .form-control.bg-dark {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-            border-color: #444;
-        }
-        .btn.btn-primary {
-        background-color: #0d6efd !important; 
-        border-color: #0d6efd !important;
-        color: white !important;
-        }
-
-        .btn.btn-primary:hover {
-            background-color: #0a58ca !important; 
-            border-color: #0a58ca !important;
-            color: white !important;
-        }
-        .form-label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        }
-
-        input[type="file"] {
-            padding: 10px !important;
-            border-radius: 4px;
-        }
-        input[type="file"] {
-            background-color: #1e1e1e !important;
-            color: #f8f9fa !important;
-            border: 2px solid #444 !important;
-            padding: 10px !important;
-            border-radius: 4px !important;
-        }
-        .btn-link.text-primary {
-            font-size: 1.2rem; 
-            padding: 0;
-        }
-
-        form.d-inline.mt-2 {
-            margin-top: 15px;
-        }
-        .form-control {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-        .form-select {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-
-    </style>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        function eliminaServizio(idServizio) {
-            if (confirm("Sei sicuro di voler eliminare questo servizio?")) {
-                $.ajax({
-                    url: 'delete-servizi.php',
-                    type: 'DELETE',
-                    dataType: 'json',
-                    data: { idServizio: idServizio },
-                    success: function(response) {
-                        if (response.success) {
-                            alert(response.message);
-                            // Reload the page
-                            location.reload();
-                        } else {
-                            alert("Errore durante l'eliminazione: " + response.message);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error("Errore AJAX:", error);
-                        alert("Si è verificato un errore durante la comunicazione con il server.");
-                    }
-                });
+$pageTitle = 'OggiInLab | Servizi';
+$pageCsrf  = true;
+$pageScripts = '
+var csrfToken = ' . json_encode($_SESSION['csrf_token'] ?? '') . ';
+function eliminaServizio(idServizio) {
+    if (confirm("Sei sicuro di voler eliminare questo servizio?")) {
+        $.ajax({
+            url: "assets/utils/delete-servizi.php",
+            type: "POST",
+            dataType: "json",
+            data: { idServizio: idServizio, _token: csrfToken },
+            success: function(response) {
+                if (response.success) {
+                    alert(response.message);
+                    location.reload();
+                } else {
+                    alert("Errore durante l\'eliminazione: " + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Errore AJAX:", error);
+                alert("Si è verificato un errore durante la comunicazione con il server.");
             }
-        }
-    </script>
-</head>
-
-<body>
+        });
+    }
+}
+';
+?>
 <?php include "includes/header.php"; ?>
 
 <div class="container mt-5">
@@ -276,7 +203,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['aggiungiServizio'])) {
                                 <td><?= htmlspecialchars($servizio['nAula']) ?></td>
                                 <td><?= htmlspecialchars($servizio['nomeProgetto'] ?? 'N/A') ?></td>
                                 <td class="text-center">
-                                    <button class="btn btn-danger btn-sm" onclick="eliminaServizio(<?= $servizio['idServizio'] ?>)">
+                                    <button class="btn btn-danger btn-sm" onclick="eliminaServizio('<?= (int)$servizio['idServizio'] ?>')">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </td>
@@ -292,7 +219,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['aggiungiServizio'])) {
         <div class="col-md-6">
             <h5>Aggiungi Nuovo Servizio</h5>
             <form method="POST" action="<?= htmlspecialchars($_SERVER['PHP_SELF']); ?>">
-                <input type="hidden" name="idAssistente" value="<?= htmlspecialchars($idAssistente); ?>">
+                <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                 <input type="hidden" name="aggiungiServizio" value="1">
                 <div class="mb-3">
                     <label for="serviziData" class="form-label">Data:</label>
@@ -334,9 +261,3 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['aggiungiServizio'])) {
     </div>
 
 <?php include 'includes/footer.php';?>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
-
-</body>
-</html>

@@ -1,7 +1,7 @@
 <?php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 $_SESSION['csrf_token'] = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));

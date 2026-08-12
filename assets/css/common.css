@@ -1,0 +1,86 @@
+/*
+ * common.css – OggiInLab
+ * Stili dark-theme condivisi da tutte le pagine
+ *
+ * Copyright (c) 2026 Sergio Ferraro
+ * Licensed under the MIT License
+ */
+
+/* ── Base ─────────────────────────────────────── */
+body {
+    background-color: #1e1e1e;
+    color: #f8f9fa;
+}
+
+/* ── Cards ────────────────────────────────────── */
+.card {
+    background-color: #2c2c2c !important;
+    border-color: #444;
+}
+
+/* ── Buttons ──────────────────────────────────── */
+.btn-link.text-primary {
+    color: #0d6efd !important;
+    font-size: 1.2rem;
+    padding: 0;
+}
+
+.btn.btn-primary,
+.btn-primary {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+}
+
+.btn.btn-primary:hover,
+.btn-primary:hover {
+    background-color: #0a58ca !important;
+    border-color: #0a58ca !important;
+    color: white !important;
+}
+
+/* ── Dark overrides ───────────────────────────── */
+.bg-dark {
+    background-color: #1e1e1e !important;
+}
+
+.text-white {
+    color: #f8f9fa !important;
+}
+
+/* ── Forms ────────────────────────────────────── */
+.form-control,
+.form-select {
+    background-color: #5c5e62 !important;
+    color: white !important;
+}
+
+.form-control.bg-dark {
+    background-color: #1e1e1e;
+    color: #f8f9fa;
+    border-color: #444;
+}
+
+.form-label {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+/* ── File input ───────────────────────────────── */
+input[type="file"] {
+    padding: 10px !important;
+    border-radius: 4px !important;
+    background-color: #1e1e1e !important;
+    color: #f8f9fa !important;
+    border: 2px solid #444 !important;
+}
+
+/* ── Social / comments ────────────────────────── */
+form.d-inline.mt-2 {
+    margin-top: 15px;
+}
+
+.comment-input {
+    background-color: #5c5e62 !important;
+    color: white !important;
+}

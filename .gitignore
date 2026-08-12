@@ -1,2 +1,19 @@
+# Configurazione sensibile
 includes/config.php
+
+# Logs
+logs/
+
+# Upload temporanei e dati utente
+uploads/*.jpeg
+uploads/*.jpg
+uploads/*.gif
+uploads/*.json
+uploads/.gantt_*
+
+# Backup
+*.bak
+
+# Privacy
+privacy.txt
 privacy.php

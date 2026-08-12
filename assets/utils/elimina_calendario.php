@@ -1,37 +1,39 @@
 <?php
-// elimina_calendario.php
-/*
+/**
+ * elimina_calendario.php – OggiInLab: Elimina voce calendario
+ *
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
+declare(strict_types=1);
 session_start();
-header('Content-Type: application/json');
-include "../../includes/config.php"; // Assuming this file starts session and connects to DB
 
+require_once __DIR__ . '/../../includes/config.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        die("Token CSRF non valido");
-    }
-
-    // Get the event ID to delete
-    $id = $_POST['idCalendario'];
-
-    try {
-        // Prepare and execute the DELETE query with school year check
-        $stmt = $dbh->prepare("DELETE FROM calendario WHERE idCalendario = :id");
-        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-        $stmt->execute();
-
-        // Redirect back to the admin panel
-        header("Location: ../../calend_ann.php"); // Adjust the filename as needed
-        exit;
-    } catch (PDOException $e) {
-        die("Errore durante l'eliminazione dell'evento: " . $e->getMessage());
-    }
-} else {
-    die("Metodo non consentito");
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    die('Metodo non consentito.');
 }
-?>
+
+// CSRF check
+$postedToken = $_POST['csrf_token'] ?? '';
+if (!hash_equals($_SESSION['csrf_token'], $postedToken)) {
+    die('Token CSRF non valido.');
+}
+
+$id = $_POST['idCalendario'] ?? null;
+if ($id === null || !is_numeric($id)) {
+    die('ID non valido.');
+}
+
+try {
+    $stmt = $dbh->prepare('DELETE FROM calendario WHERE idCalendario = :id');
+    $stmt->execute([':id' => (int) $id]);
+} catch (PDOException $e) {
+    error_log('Elimina calendario: ' . $e->getMessage());
+    die('Errore durante l\'eliminazione.');
+}
+
+header('Location: ../../calend_ann.php');
+exit;

@@ -2,7 +2,7 @@
 // change-password.php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 session_start();
@@ -12,6 +12,10 @@ if(strlen($_SESSION['alogin'])==0) {
     header('location:index.php');
 } else {
     if(isset($_POST['change'])) {
+        // --- CSRF validation ---
+        if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+            $error = "Token di sicurezza non valido. Riprova.";
+        } else {
         $current_password = $_POST['password'];
         $new_password = $_POST['newpassword'];
         $confirm_password = $_POST['confirmpassword'];
@@ -48,100 +52,12 @@ if(strlen($_SESSION['alogin'])==0) {
         } else {
             $error = "User not found"; // Unlikely, since user is logged in
         }
+        } // fine CSRF else
     }
 }
-?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-    <!--[if IE]>
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <![endif]-->
-    <title>OggiInLab | Cambio password</title>
-    <!-- Dark theme Bootswatch Cyborg -->
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
 
-    <!-- FONT AWESOME STYLE  -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- GOOGLE FONT -->
-    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
-    <style>
-        body {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-        }
-        .card {
-            background-color: #2c2c2c !important;
-            border-color: #444;
-        }
-        .btn-link.text-primary {
-            color: #0d6efd !important;
-        }
-        .bg-dark {
-        background-color: #1e1e1e !important;
-        }
-        .text-white {
-            color: #f8f9fa !important;
-        }
-        .form-control.bg-dark {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-            border-color: #444;
-        }
-        .btn.btn-primary {
-        background-color: #0d6efd !important; 
-        border-color: #0d6efd !important;
-        color: white !important;
-        }
-
-        .btn.btn-primary:hover {
-            background-color: #0a58ca !important; 
-            border-color: #0a58ca !important;
-            color: white !important;
-        }
-        .form-label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        }
-
-       
-        input[type="file"] {
-            padding: 10px !important;
-            border-radius: 4px;
-        }
-        input[type="file"] {
-            background-color: #1e1e1e !important;
-            color: #f8f9fa !important;
-            border: 2px solid #444 !important;
-            padding: 10px !important;
-            border-radius: 4px !important;
-        }
-        .btn-link.text-primary {
-            font-size: 1.2rem; 
-            padding: 0;
-        }
-
-        
-        form.d-inline.mt-2 {
-            margin-top: 15px;
-        }
-        .form-control {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-        .form-select {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-
-    </style>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-</head>
-<script type="text/javascript">
+$pageTitle = 'OggiInLab | Cambio password';
+$pageHeadScripts = '<script type="text/javascript">
 function valid()
 {
 if(document.chngpwd.newpassword.value!= document.chngpwd.confirmpassword.value)
@@ -152,17 +68,14 @@ return false;
 }
 return true;
 }
-</script>
-
-<body>
-    <!------MENU SECTION START-->
+</script>';
+?>
 <?php include('includes/header.php');?>
-<!-- MENU SECTION END-->
 <div class="content-wrapper">
 <div class="container">
 <div class="row pad-botm">
 <div class="col-md-12">
-<h4 class="header-line">Password utente cambiata</h4>
+<h4 class="header-line">Gestione password</h4>
 </div>
 </div>
  <?php if($error){?><div class="errorWrap"><strong>ERROR</strong>:<?php echo htmlentities($error); ?> </div><?php } 
@@ -176,20 +89,21 @@ Cambia password
 </div>
 <div class="panel-body">
 <form role="form" method="post" onSubmit="return valid();" name="chngpwd">
+<input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>" />
 
 <div class="form-group">
 <label>Password corrente</label>
-<input class="form-control" type="password" name="password" autocomplete="off" required  />
+<input class="form-control" type="password" name="password" autocomplete="current-password" required  />
 </div>
 
 <div class="form-group">
 <label>Inserisci la password</label>
-<input class="form-control" type="password" name="newpassword" autocomplete="off" required  />
+<input class="form-control" type="password" name="newpassword" autocomplete="new-password" required  />
 </div>
 
 <div class="form-group">
 <label>Conferma la password </label>
-<input class="form-control"  type="password" name="confirmpassword" autocomplete="off" required  />
+<input class="form-control"  type="password" name="confirmpassword" autocomplete="new-password" required  />
 </div>
 
  <button type="submit" name="change" class="btn btn-info">Cambia </button> 
@@ -205,9 +119,4 @@ Cambia password
     </div>
      <!-- CONTENT-WRAPPER SECTION END-->
  <?php include('includes/footer.php');?>
-      <!-- FOOTER SECTION END-->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
-</body>
-</html>
 

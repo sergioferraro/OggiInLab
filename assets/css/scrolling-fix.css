@@ -1,0 +1,19 @@
+/* Fix for scrollable text in project table */
+.scrollable-text {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.scrollable-text:hover {
+    overflow: visible;
+    z-index: 1000;
+}
+
+.truncated-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

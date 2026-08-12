@@ -2,7 +2,7 @@
 // active_proj.php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 session_start();
@@ -18,96 +18,82 @@ if (empty($_SESSION["alogin"])) {
 if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
+
+// Determine which projects to show: active (default) or done
+$status = isset($_GET['status']) && $_GET['status'] === 'done' ? 'done' : 'active';
+
+$pageTitle = 'OggiInLab | ' . ($status === 'active' ? 'Progetti attivi' : 'Progetti terminati');
+$pageCsrf  = true;
+$pageScriptFiles = ['assets/js/active_proj.js'];
+$pageStyles = '
+/* --- Scrolling text for long project names/descriptions --- */
+.scrollable-text {
+    display: inline-block;
+    white-space: nowrap;
+    box-sizing: border-box;
+    animation: scroll-left 12s linear infinite;
+}
+.scrollable-text:hover {
+    animation-play-state: paused;
+}
+@keyframes scroll-left {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+/* Constrain columns so text can overflow */
+table.table-striped th:nth-child(1),
+table.table-striped td:nth-child(1) {
+    width: 180px;
+    max-width: 180px;
+    overflow: hidden;
+}
+table.table-striped th:nth-child(2),
+table.table-striped td:nth-child(2) {
+    width: 220px;
+    max-width: 220px;
+    overflow: hidden;
+}
+
+/* Ensure project-title button doesn\'t expand the cell */
+.project-title {
+    width: 100%;
+    text-align: left;
+    padding: 2px 4px;
+}
+
+/* Custom tooltip for truncated text */
+.truncated-cell {
+    position: relative;
+    cursor: default;
+}
+.truncated-cell::after {
+    content: attr(data-full-text);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #212529;
+    color: #f8f9fa;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    white-space: normal;
+    max-width: 320px;
+    word-wrap: break-word;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 1000;
+}
+.truncated-cell:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+';
 ?>
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-    <meta name="csrf-token" content="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-    <!--[if IE]>
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <![endif]-->
-    <title>OggiInLab | Progetti attivi</title>
-    <!-- Dark theme with Bootswatch Cyborg -->
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
-    <!-- FONT AWESOME STYLE  -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- GOOGLE FONT -->
-    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Optional styling for table responsiveness -->
-    <style>
-        body {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-        }
-        .card {
-            background-color: #2c2c2c !important;
-            border-color: #444;
-        }
-        .btn-link.text-primary {
-            color: #0d6efd !important;
-        }
-        .bg-dark {
-        background-color: #1e1e1e !important;
-        }
-        .text-white {
-            color: #f8f9fa !important;
-        }
-        .form-control.bg-dark {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-            border-color: #444;
-        }
-        .btn.btn-primary {
-        background-color: #0d6efd !important; /* Light Blue */
-        border-color: #0d6efd !important;
-        color: white !important;
-        }
-
-        .btn.btn-primary:hover {
-            background-color: #0a58ca !important; /* Dark blue on hover */
-            border-color: #0a58ca !important;
-            color: white !important;
-        }
-        .form-label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        }
-
-        /* input file style */
-        input[type="file"] {
-            padding: 10px !important;
-            border-radius: 4px;
-        }
-        input[type="file"] {
-            background-color: #1e1e1e !important;
-            color: #f8f9fa !important;
-            border: 2px solid #444 !important;
-            padding: 10px !important;
-            border-radius: 4px !important;
-        }
-        .btn-link.text-primary {
-            font-size: 1.2rem; /* emoji */
-            padding: 0;
-        }
-
-        /* "Like" distance  */
-        form.d-inline.mt-2 {
-            margin-top: 15px;
-        }
-        .comment-input {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-
-    </style>
-</head>
-
-<body>
 <?php include "includes/header.php"; ?>
 
 <div class="container mt-5">
@@ -117,7 +103,7 @@ if (!isset($_SESSION['csrf_token'])) {
         <div class="col-md-6 mb-4">
             <div class="card bg-light" style="max-width: 22rem;">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Progetti Attivi</span>
+                    <span><?= $status === 'active' ? 'Progetti Attivi' : 'Progetti Terminati' ?></span>
                     <!-- Button trigger for AJAX -->
                     <button type="button" id="viewProjectsButton" 
                             class="btn btn-primary"
@@ -126,21 +112,27 @@ if (!isset($_SESSION['csrf_token'])) {
                             role="button"
                             aria-expanded="false"
                             aria-controls="projectsList">
-                        Visualizza progetti
+                        <?= $status === 'active' ? 'Visualizza progetti' : 'Progetti terminati' ?>
                     </button>
                 </div>
 
                 <div class="card-body text-center">
                     <?php
                         try {
+                            $dateCondition = $status === 'active'
+                                ? "(endDate IS NULL OR endDate >= CURRENT_DATE)"
+                                : "(endDate < CURRENT_DATE)";
+
                             $sql = "SELECT idProgetto FROM progetto 
-                                    WHERE (endDate IS NULL OR endDate >= CURRENT_DATE) -- Group date conditions with parentheses
-                                    AND (progetto.descProgetto != 'prenotaaulagiornaliero') AND (progetto.descProgetto!= 'orario delle lezioni')";
+                                    WHERE $dateCondition
+                                    AND (progetto.descProgetto != 'prenotaaulagiornaliero') 
+                                    AND (progetto.descProgetto != 'orario delle lezioni')
+                                    AND (progetto.descProgetto != 'Il laboratorio non è accessibile');";
                             $query = $dbh->prepare($sql);
                             $query->execute();
                             $results = $query->fetchAll(PDO::FETCH_NUM);
 
-                            // Count the number of active projects
+                            // Count the number of projects
                             $listprogetti = count($results); 
 
                         } catch (PDOException $e) {
@@ -164,8 +156,23 @@ if (!isset($_SESSION['csrf_token'])) {
                     <button type="button" class="btn-close" data-bs-dismiss="collapse"></button>
                 </div>
                 <div class="card-body p-3">
+                    <!-- Barra di ricerca per nome progetto -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <input type="text" id="searchProjectName" class="form-control bg-dark text-white" placeholder="Cerca per nome progetto...">
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" id="resetSearch" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Reset
+                            </button>
+                        </div>
+                    </div>
                     <?php
                         try {
+                            $dateCondition = $status === 'active'
+                                ? "(endDate IS NULL OR endDate >= CURRENT_DATE)"
+                                : "(endDate < CURRENT_DATE)";
+
                             $sql = "SELECT 
                                     p.idProgetto,
                                     p.nomeProgetto, -- Name of the project
@@ -178,8 +185,10 @@ if (!isset($_SESSION['csrf_token'])) {
                                 FROM progetto p
                                 LEFT JOIN docente d ON p.idTutor = d.idDocente
                                 LEFT JOIN docente d2 ON p.idEsperto = d2.idDocente
-                                WHERE (endDate IS NULL OR endDate >= CURRENT_DATE) -- Group date conditions with parentheses
-                                AND (p.descProgetto != 'prenotaaulagiornaliero') AND (p.descProgetto != 'orario delle lezioni')";
+                                WHERE $dateCondition
+                                AND (p.descProgetto != 'prenotaaulagiornaliero') 
+                                AND (p.descProgetto != 'orario delle lezioni')
+                                AND (p.descProgetto != 'Il laboratorio non è accessibile');";
                                 
                                 $query = $dbh->prepare($sql);
                                 $query->execute();
@@ -211,11 +220,18 @@ if (!isset($_SESSION['csrf_token'])) {
                                             data-bs-target="#appointments-<?= htmlspecialchars($project['idProgetto']) ?>"
                                             aria-expanded="true"
                                             aria-controls="appointments-<?= htmlspecialchars($project['idProgetto']) ?>"
-                                            data-id="<?= htmlspecialchars($project['idProgetto']) ?>">
-                                            <?= htmlspecialchars(mb_substr($project['nomeProgetto'],0,17,'UTF-8')).(strlen($project['descProgetto']) > 20 ? '...' : '') ?>
+                                            data-id="<?= htmlspecialchars($project['idProgetto']) ?>"
+                                            title="<?= htmlspecialchars($project['nomeProgetto']) ?>">
+                                            <span class="scrollable-text">
+                                                <?= htmlspecialchars($project['nomeProgetto']) ?>
+                                            </span>
                                         </button>
                                     </td>
-                                    <td><?= htmlspecialchars(mb_substr($project['descProgetto'], 0, 17, 'UTF-8')) . (strlen($project['descProgetto']) > 20 ? '...' : '') ?></td>
+                                    <td class="truncated-cell" data-full-text="<?= htmlspecialchars($project['descProgetto']) ?>">
+                                        <span class="scrollable-text">
+                                            <?= htmlspecialchars($project['descProgetto']) ?>
+                                        </span>
+                                    </td>
 
                                     <td><?= htmlspecialchars($project['Tutor_Cognome'] ?? 'N/D') ?></td>
                                     <td><?= htmlspecialchars($project['Esperto_Cognome'] ?? 'N/D') ?></td>
@@ -234,10 +250,12 @@ if (!isset($_SESSION['csrf_token'])) {
                                         <a href="manage-project.php?id=<?= htmlspecialchars($project['idProgetto']) ?>" class="btn btn-primary btn-modify">
                                             <i class="fas fa-edit"></i> Modifica
                                         </a>
-                                        <!-- New "Aggiungi Appuntamento" button -->
+                                        <?php if ($status === 'active'): ?>
+                                        <!-- "Aggiungi Appuntamento" button only for active projects -->
                                         <button type="button" class="btn-add-appointment btn btn-success" data-id="<?= htmlspecialchars($project['idProgetto']) ?>">
                                             <i class="fas fa-plus"></i> Aggiungi Appuntamento
                                         </button>
+                                        <?php endif; ?>
                                         <a href="assets/utils/print_project.php?id=<?= htmlspecialchars($project['idProgetto']) ?>" 
                                             target="_blank" 
                                             rel="noopener noreferrer" 
@@ -396,384 +414,28 @@ if (!isset($_SESSION['csrf_token'])) {
         </div>
     </div>
 </div>
+<!-- Toast container for notifications -->
+<div id="toastContainer" class="fixed-top" style="z-index:9999; padding:15px;"></div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Conferma</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmModalBody"></div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-danger" id="confirmModalOk">Conferma</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <input type="hidden" id="csrfToken" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>" />
+<!-- Hidden field to pass status to JS -->
+<input type="hidden" id="projectStatus" value="<?= $status ?>" />
+
 <?php include 'includes/footer.php';?>
-
-
-
-<!-- SCRIPTS -->
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
-
-<script> 
-    $(document).ready(function() {
-
-// Load project details
-    function loadProjectDetails(element) {
-        const projectId = $(element).data('id');
-    
-        // Clean container and show
-        $('#projectDetailsContainer').html('<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Caricamento...</span></div>');
-    
-         $.ajax({
-            url: 'assets/utils/get_project_details.php',
-            method: 'GET',
-            data: { id: projectId },
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    // Create html content
-                    const content = `
-                        <h6>${response.progetto.nome_progetto}</h6>
-                        <p><strong>Tutor:</strong> ${response.progetto.Tutor_Cognome}</p>
-                        <p><strong>Esperto:</strong> ${response.progetto.Esperto_Cognome}</p>
-                        <p><strong>Data inizio:</strong> ${response.progetto.start_date}</p>
-                        <p><strong>Data fine:</strong> ${response.progetto.end_date}</p>
-                        <hr>
-                        <p class="mb-0"><strong>Descrizione:</strong></p>
-                        <pre>${response.progetto.Desc_Progetto}</pre>
-                        </hr>
-                    `;
-                    
-                    // Refresh modal and show details
-                    $('#projectDetailsContainer').html(content);
-                    $('#projectIdTitle').text(`Progetto ${response.progetto.nome_progetto}`);
-                } else {
-                    $('#projectDetailsContainer').html('<div class="alert alert-warning">Nessun dettaglio disponibile per questo progetto.</div>');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Errore durante il caricamento:', error);
-                $('#projectDetailsContainer').html('<div class="alert alert-danger">Errore di rete. Riprova più tardi.</div>');
-            }
-        });
-    }
-});
-    // Show modal when click on a project
-    $(document).on('click', '.project-title', function(){
-        var projectId = $(this).data('id');
-        var targetDiv = $('#appointments-' + projectId);
-
-        // Log for debugging
-        // console.log("Project title clicked. ID:", projectId);
-
-        // If the appointments container is empty, load the appointments via AJAX
-        // if (targetDiv.is(':empty')) 
-        {
-            targetDiv.html('<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Caricamento...</span></div>');
-
-            $.ajax({
-                url: 'assets/utils/get_project_appointments.php',
-                method: 'GET',
-                data: { id: projectId },
-                dataType: 'json',
-                success: function(response) {
-                console.log("AJAX response:", response);
-
-                    if (response.success) {
-                        var htmlContent = '<table class="table table-bordered">';
-                        htmlContent += '<thead><tr><th>Data</th><th>Ora Inizio</th><th>Ora Fine</th><th>Luogo</th><th>Descrizione</th></tr></thead><tbody>';
-
-                        $.each(response.appointments, function(index, appointment){
-                            const start = new Date(`${appointment.data}T${appointment.oraInizio}`);
-                            const end = new Date(`${appointment.data}T${appointment.oraFine}`);
-                            const id = appointment.idAppuntamento;
-                            htmlContent += '<tr>';
-                            htmlContent += '<td>' + start.toLocaleDateString('it-IT') + '</td>';
-                            htmlContent += '<td>' + appointment.oraInizio + '</td>';
-                            htmlContent += '<td>' + appointment.oraFine + '</td>';
-                            htmlContent += '<td>' + (appointment.luogo ? appointment.luogo : 'N/D') + '</td>';
-                            htmlContent += '<td>' + (appointment.descrizione ? appointment.descrizione : 'N/D') + '</td>';
-                            htmlContent += '<td>';
-                            // Fixed Modifica button:
-                            htmlContent += '<button type="button" class="btn btn-sm btn-primary btn-edit me-1"';
-                            htmlContent += ' data-id_corso="' + appointment.idCorso + '"';
-                            htmlContent += ' data-id_appuntamento="' + appointment.idAppuntamento + '"';
-                            htmlContent += ' data-data="' + appointment.data + '"';
-                            htmlContent += ' data-ora_inizio="' + appointment.oraInizio + '"';
-                            htmlContent += ' data-ora_fine="' + appointment.oraFine + '"';
-                            htmlContent += ' data-luogo="' + (appointment.aulaId  || 'N/D') + '"';
-                            htmlContent += ' data-descrizione="' + appointment.descrizione + '"';
-                            htmlContent += '>';
-                            htmlContent += '<i class="fas fa-edit"></i> Modifica';
-                            htmlContent += '</button>';
-                            htmlContent += '<button type="button" class="btn-delete-appointment btn btn-danger"';
-                            htmlContent += ' data-id_corso="' + appointment.idCorso + '"';
-                            htmlContent += ' data-id="' + appointment.idAppuntamento + '"';
-                            htmlContent += '>';
-                            htmlContent += '<i class="fas fa-trash"></i> Elimina';
-                            htmlContent += '</button>';
-                            htmlContent += '</td>';
-                            htmlContent += '</tr>';
-                        });
-
-                        htmlContent += '</tbody></table>';
-                        targetDiv.html(htmlContent);
-                    } else {
-                        targetDiv.html('<div class="alert alert-warning">Nessun appuntamento trovato.</div>');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Errore nel caricamento degli appuntamenti:', error);
-                    targetDiv.html('<div class="alert alert-danger">Errore nel caricamento degli appuntamenti.</div>');
-                }
-            });
-        }
-    });
-
-    $(document).on('click', '.btn-delete-appointment', function(e) { 
-        e.preventDefault(); 
-        const $button = $(this); 
-        const appointmentId = $button.data('id'); 
-        const projectId = $button.data('id_corso'); // Ensure row has project ID
-        console.log("Id appuntamento:", appointmentId);
-        console.log("Id corso:", projectId);
-        const csrfToken = $('meta[name="csrf-token"]').attr('content');
-        if (confirm("Confermi l'annullamento dell'appuntamento?")) {
-            $.ajax({
-                url: 'assets/utils/invalida-appointment.php',
-                method: 'POST',
-                data: {
-                    idCorso: projectId,
-                    idAppuntamento: appointmentId,
-                    _token: csrfToken
-                },
-                beforeSend: function() {
-                $button.prop('disabled', true).html('Eliminando...');
-                },
-                success: function(response) {
-                    if (response.success) {
-                        $button.closest('tr').remove();
-                        $button.prop('disabled', false).html('Elimina');
-                    } else {
-                        alert('Errore: ' + response.message);
-                        $button.prop('disabled', false).html('Elimina');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('AJAX Error:', error, xhr);
-                    try {
-                        const errResponse = JSON.parse(xhr.responseText);
-                        alert('Errore di sistema: ' + (errResponse.message || 'Imprevisto'));
-                        } catch {
-                            alert('Errore critico: ' + error);
-                        }
-                        $button.prop('disabled', false).html('Elimina');
-                    }
-                });
-            }
-    });
-    $(document).on('click', '.project-click-area', function() {
-        $('#projectDetailsModal').modal('show');
-        loadProjectDetails($(this));
-    });
-
-    $(document).on('click', '.btn-edit', function()  {
-        const $btn = $(this);
-        console.log('Button data:', $btn.data());
-
-        $('#editAppointmentProjectId').val($btn.data('id_corso'));
-        $('#editAppointmentId').val($btn.data('id_appuntamento'));
-        $('#editAppointmentData').val($btn.data('data'));
-        $('#editAppointmentOraInizio').val($btn.data('ora_inizio'));
-        $('#editAppointmentOraFine').val($btn.data('ora_fine'));
-        $('#editAppointmentLuogo').val($btn.data('luogo'));
-        $('#editAppointmentDescrizione').val($btn.data('descrizione'));
-        $('#editAppointmentModal').modal('show');
-    });
-
-    $('#editAppointmentForm').on('submit', function(e) {
-        e.preventDefault();
-
-        const dataArray = $(this).serializeArray();
-        dataArray.push({
-            name: '_token',
-            value: $('#csrfToken').val()
-        });
-
-        $.ajax({
-            url: 'assets/utils/edit-appointment.php',
-            type: 'POST',
-            data: $.param(dataArray),
-            dataType: 'json',
-            beforeSend: function() {
-                $('#editAppointmentForm button[type="submit"]').prop('disabled', true);
-            },
-            success: function(response) {
-                console.log('AJAX Response:', response); 
-                if (response.success) {
-                    alert('Appuntamento aggiornato con successo.');
-                    $('#editAppointmentModal').modal('hide');
-                    // Reload list
-                    window.location.reload();
-                } else {
-                    alert('Errore: ' + response.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX Error:', error);
-                console.log('Error Response:', xhr.responseText); 
-                alert('Errore nella richiesta AJAX.');
-            },
-            complete: function() {
-                $('#editAppointmentForm button[type="submit"]').prop('disabled', false);
-            }
-        });
-    });
-
-
-    $(document).on('click', '.btn-add-appointment', function() {
-        const projectId = $(this).data('id'); // Corrected from 'ID_Appuntamento' to 'id'
-        // Set the hidden input with the project id (foreign key)
-        $('#appointmentProjectId').val(projectId);
-        
-        // Optionally clear the rest of the form inputs
-        $('#addAppointmentForm')[0].reset();
-        
-        // Open the modal
-        $('#addAppointmentModal').modal('show');
-    });
-
-    // Handle the form submission via AJAX
-    $('#addAppointmentForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = $(this).serialize();
-        
-        $.ajax({
-            url: 'assets/utils/add-appointment.php',
-            type: 'POST',
-            data: formData,
-            dataType: 'json',
-            beforeSend: function() {
-                // Optional: Disable the submit button or show a loader
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Appointment successfully added.
-                    alert('Appuntamento aggiunto con successo.');
-                    $('#addAppointmentModal').modal('hide');
-
-                    var targetDiv = $('#appointments-' + $('#appointmentProjectId').val());
-                    if(targetDiv.length) {
-                        // Reload this appointments section (you might have your own AJAX call for this)
-                        targetDiv.html('<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Caricamento...</span></div>');
-                        $.ajax({
-                            url: 'assets/utils/get_project_appointments.php',
-                            method: 'GET',
-                            data: { id: $('#appointmentProjectId').val() },
-                            dataType: 'json',
-                            success: function(response) {
-                                if(response.success) {
-                                    var htmlContent = '<table class="table table-bordered">';
-                                    htmlContent += '<thead><tr><th>Data</th><th>Ora Inizio</th><th>Ora Fine</th><th>Luogo</th><th>Azioni</th></tr></thead><tbody>';
-                                    const start = new Date(`${appointment.data}T${appointment.oraInizio}`);
-                                    $.each(response.appointments, function(index, appointment) {
-                                        htmlContent += '<tr>';
-                                        htmlContent += '<td>' + start.toLocaleDateString('it-IT') + '</td>';
-                                        htmlContent += '<td>' + appointment.oraInizio + '</td>';
-                                        htmlContent += '<td>' + appointment.oraFine + '</td>';
-                                        htmlContent += '<td>' + (appointment.luogo ? appointment.luogo : 'N/D') + '</td>';
-                                        htmlContent += '<td>';
-                                        htmlContent += '<button type="button" class="btn-delete-appointment btn btn-danger"';
-                                        htmlContent += ' data-id-corso="' + appointment.idCorso + '"';
-                                        htmlContent += ' data-id="' + appointment.idAppuntamento + '">';
-                                        htmlContent += '<i class="fas fa-trash"></i> Annulla';
-                                        htmlContent += '</button>';
-                                        htmlContent += '</td>';
-                                        htmlContent += '</tr>';
-                                    });
-                                    htmlContent += '</tbody></table>';
-                                    targetDiv.html(htmlContent);
-                                } else {
-                                    targetDiv.html('<div class="alert alert-warning">Nessun appuntamento trovato.</div>');
-                                }
-                            },
-                            error: function(xhr, status, error) {
-                                console.error('Errore nel caricamento degli appuntamenti:', error);
-                                targetDiv.html('<div class="alert alert-danger">Errore nel caricamento degli appuntamenti.</div>');
-                            }
-                        });
-                    }
-
-                } else {
-                    alert('Errore: ' + response.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX Error:', error);
-                alert('Errore nella richiesta AJAX.');
-            }
-        });
-    });
-
-    $(document).on('click', '.btn-delete', function(e) {
-    e.preventDefault();
-    const $button = $(this);
-    const deleteId = $button.data('id');
-    const csrfToken = $('meta[name="csrf-token"]').attr('content');
-
-    // Check if there are appointments associated with the project
-    $.ajax({
-        url: 'assets/utils/get_project_appointments.php',
-        method: 'GET',
-        data: { id: deleteId },
-        beforeSend: function() {
-            $button.prop('disabled', true).html('Verifica...');
-        }
-    }).done(function(response) {
-        if (response.success && response.appointments.length > 0) {
-            // Appointments exist: show a warning
-            alert("Impossibile eliminare il progetto. Esistono appuntamenti associati.");
-            $button.prop('disabled', false).html('Elimina');
-        } else {
-            // No appointments: ask for confirmation and proceed with deletion
-            if (confirm("Confermi l'eliminazione del progetto?")) {
-                $.ajax({
-                    url: 'assets/utils/delete-project.php',
-                    method: 'POST',
-                    data: {
-                        delete_id: deleteId,
-                        _token: csrfToken
-                    },
-                    beforeSend: function() {
-                        $button.prop('disabled', true).html('Eliminando...');
-                    }
-                }).done(function(response) {
-                    if (response.success) {
-                        $('meta[name="csrf-token"]').attr('content', response.csrf_token);
-                        // Remove the row and restore the button
-                        $button.closest('tr').slideUp(300, function() {
-                            $(this).remove();
-                        });
-                        $('#projectDetailsContainer').empty();
-                        $button.prop('disabled', false).html('Elimina');
-                    } else {
-                        alert('Errore: ' + response.message);
-                        $button.prop('disabled', false).html('Elimina');
-                    }
-                }).fail(function(xhr, status, error) {
-                    console.error('AJAX Error:', error, xhr);
-                    try {
-                        const errResponse = JSON.parse(xhr.responseText);
-                        alert('Errore di sistema: ' + (errResponse.message || 'Imprevisto'));
-                    } catch {
-                        alert('Errore critico: ' + error);
-                    }
-                    $button.prop('disabled', false).html('Elimina');
-                });
-            } else {
-                // User canceled the confirmation
-                $button.prop('disabled', false).html('Elimina');
-            }
-        }
-    }).fail(function(xhr, status, error) {
-        console.error('AJAX Error (verifica appuntamenti):', error, xhr);
-        alert('Errore durante il controllo degli appuntamenti.');
-        $button.prop('disabled', false).html('Elimina');
-    });
-});
-</script>
-</body>
-</html>

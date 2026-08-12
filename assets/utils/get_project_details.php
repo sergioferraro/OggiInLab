@@ -2,7 +2,7 @@
 // get_project_details.php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 include "../../includes/config.php";

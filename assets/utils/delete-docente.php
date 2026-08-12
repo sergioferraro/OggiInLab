@@ -1,55 +1,92 @@
 <?php
-// delete-docente.php
-/*
+/**
+ * delete-docente.php – OggiInLab: Toggle stato docente (soft delete)
+ *
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
+declare(strict_types=1);
 session_start();
 header('Content-Type: application/json');
-include "../../includes/config.php"; // Assuming this file starts session and connects to DB
 
-if (!isset($_POST['delete_id']) || !isset($_POST['_token'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Invalid request']);
+require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/Logger.php';
+
+// -------------------------------------------------------------------
+// Method check
+// -------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Metodo non consentito']);
     exit;
 }
-if (isset($_SESSION['is_super_admin']) && $_SESSION['is_super_admin'] == 0) {
-    echo json_encode(['success' => false, 'message' => 'non si dispone di privilegi sufficienti']);
-    exit();
-}
-$deleteId = intval($_POST['delete_id']);
-$csrfToken = $_POST['_token'];
 
-// Check CSRF token (if stored in session)
-// Assuming session has 'csrf_token'
-if ($_SESSION['csrf_token'] !== $csrfToken) {
+// -------------------------------------------------------------------
+// CSRF check
+// -------------------------------------------------------------------
+$postedToken = $_POST['_token'] ?? '';
+if (!hash_equals($_SESSION['csrf_token'], $postedToken)) {
+    Logger::warning('docente_status_csrf_error', [
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+    ]);
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Invalid CSRF token']);
+    echo json_encode(['success' => false, 'message' => 'Token CSRF non valido']);
     exit;
 }
 
-try {
-    $toggleSql = "UPDATE docente SET isDeleted = NOT isDeleted WHERE idDocente = :id";
-    $query = $dbh->prepare($toggleSql);
-    $result = $query->execute([':id' => $deleteId]);
+// -------------------------------------------------------------------
+// Validate ID
+// -------------------------------------------------------------------
+$deleteId = $_POST['delete_id'] ?? null;
+if ($deleteId === null || !is_numeric($deleteId)) {
+    Logger::warning('docente_status_validation_error', [
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+        'id' => $deleteId
+    ]);
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'ID non valido']);
+    exit;
+}
 
-    if ($result) {
+// -------------------------------------------------------------------
+// Toggle isDeleted
+// -------------------------------------------------------------------
+try {
+    $stmt = $dbh->prepare(
+        'UPDATE docente SET isDeleted = NOT isDeleted WHERE idDocente = :id'
+    );
+    $stmt->execute([':id' => (int) $deleteId]);
+
+    if ($stmt->rowCount() > 0) {
+        Logger::success('docente_status_toggle', [
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            'id_docente' => (int) $deleteId,
+            'new_status' => $stmt->fetchColumn() // will get the isDeleted value after toggle
+        ]);
         echo json_encode([
-        'success' => true,
-        'message' => "Soft delete toggled successfully."
+            'success' => true,
+            'message' => 'Stato docente aggiornato con successo.',
         ]);
     } else {
-    echo json_encode([
-        'success' => false, 
-        'message' => 'Docente non trovato o soft-delete toggle fallito'
-    ]);
+        Logger::info('docente_status_not_found', [
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            'id_docente' => (int) $deleteId
+        ]);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Docente non trovato.',
+        ]);
     }
 } catch (PDOException $e) {
-    error_log("Delete docente error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Errore di sistema']);
+    Logger::error('docente_status_db_error', [
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+        'id_docente' => (int) $deleteId,
+        'error_message' => $e->getMessage()
+    ]);
+    error_log('Toggle docente: ' . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'Errore di sistema.',
+    ]);
 }
-
-
-
-?>

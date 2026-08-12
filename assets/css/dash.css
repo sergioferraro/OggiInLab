@@ -478,7 +478,6 @@
  
 
     .left-section {
-        width: 30%;
         background-color: var(--bs-bg-dark);
         color: var(--bs-text-light);
         display: flex;
@@ -487,10 +486,12 @@
     .left-section .location {
         text-align: center;
         box-sizing: border-box;
-        padding: 6px;
+        padding: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
      .right-section {
-         width: 70%; /* O qualsiasi valore necessario */
          display: flex;
          flex-direction: column;
          position: relative; /* Per posizionamento assoluto */
@@ -680,3 +681,11 @@
      from { opacity: 0; }
      to   { opacity: 1; }
  }
+
+/* Dashboard form overrides */
+.form-label {
+    color: gray;
+}
+.form-control {
+    background: rgb(146, 146, 146);
+}

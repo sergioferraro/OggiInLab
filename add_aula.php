@@ -2,7 +2,7 @@
 // add_aula.php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 session_start();
@@ -138,100 +138,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         error_log("Errore database aule: " . $e->getMessage());
     }
 }
+
+$pageTitle = 'OggiInLab | Aule';
 ?>
-
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-    <!--[if IE]>
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <![endif]-->
-    <title>OggiInLab | Aule</title>
-    <!-- Dark theme Bootswatch Cyborg -->
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
-
-    <!-- FONT AWESOME STYLE  -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- GOOGLE FONT -->
-    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <style>
-        body {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-        }
-        .card {
-            background-color: #2c2c2c !important;
-            border-color: #444;
-        }
-        .btn-link.text-primary {
-            color: #0d6efd !important;
-        }
-        .bg-dark {
-        background-color: #1e1e1e !important;
-        }
-        .text-white {
-            color: #f8f9fa !important;
-        }
-        .form-control.bg-dark {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-            border-color: #444;
-        }
-        .btn.btn-primary {
-        background-color: #0d6efd !important; /* Light Blue */
-        border-color: #0d6efd !important;
-        color: white !important;
-        }
-
-        .btn.btn-primary:hover {
-            background-color: #0a58ca !important; /* Dark Blue on Hover */
-            border-color: #0a58ca !important;
-            color: white !important;
-        }
-        .form-label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        }
-
-        /* Style for File input */
-        input[type="file"] {
-            padding: 10px !important;
-            border-radius: 4px;
-        }
-        input[type="file"] {
-            background-color: #1e1e1e !important;
-            color: #f8f9fa !important;
-            border: 2px solid #444 !important;
-            padding: 10px !important;
-            border-radius: 4px !important;
-        }
-        .btn-link.text-primary {
-            font-size: 1.2rem; /* Emoji Sizes */
-            padding: 0;
-        }
-
-        /* Distance Between Image and Like Button */
-        form.d-inline.mt-2 {
-            margin-top: 15px;
-        }
-        .form-control {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-        .form-select {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-
-    </style>
-</head>
-
-<body>
 <?php include "includes/header.php"; ?>
 
 <div class="container mt-5">
@@ -352,9 +261,3 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
 <?php include 'includes/footer.php';?>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
-
-</body>
-</html>

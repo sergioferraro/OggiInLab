@@ -1,58 +1,57 @@
 <?php
-//calend_ann.php
-/*
+/**
+ * calend_ann.php – OggiInLab: Calendario Scolastico Annuale
+ *
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
+declare(strict_types=1);
 session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-include "includes/config.php";
+require_once __DIR__ . '/includes/config.php';
 
-if (empty($_SESSION["alogin"])) {
-    header("location: index.php");
-    exit();
+// -------------------------------------------------------------------
+// Auth guard
+// -------------------------------------------------------------------
+if (empty($_SESSION['alogin'])) {
+    header('Location: index.php');
+    exit;
 }
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-// Management for school start-end dates
-if ($_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['csrf_token']) && $_POST['csrf_token'] === $_SESSION['csrf_token'] &&
-    isset($_POST['startDate']) && isset($_POST['endDate'])) {
-    $startDate = $_POST['startDate'];
-    $endDate = $_POST['endDate'];
-    
-    try {
-        $stmt = $dbh->prepare("UPDATE progetto SET startDate = :start, endDate = :end WHERE nomeProgetto = 'orario'");
-        $stmt->execute([
-            ':start' => $startDate,
-            ':end' => $endDate
-        ]);
-    } catch (PDOException $e) {
-        echo "Errore salvataggio date: " . $e->getMessage();
-    }
-}
-function CalcolaAnnoScolastico(DateTime $data): string
+
+// -------------------------------------------------------------------
+// CSRF token
+// -------------------------------------------------------------------
+$_SESSION['csrf_token'] = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));
+
+// -------------------------------------------------------------------
+// Helpers
+// -------------------------------------------------------------------
+
+/**
+ * Restituisce l'anno scolastico corrente in formato "2025/2026".
+ */
+function getAnnoScolastico(DateTime $data): string
 {
-    $mese = (int)$data->format('m');
-    $anno = (int)$data->format('Y');
-    if ($mese >= 9 && $mese <= 12) {
-        $annoseg=$anno+1;
-        return "{$anno}/{$annoseg}";
-    } else {
-        $annoprec=$anno-1;
-        return "{$annoprec}/{$anno}";
+    $mese = (int) $data->format('m');
+    $anno = (int) $data->format('Y');
+
+    if ($mese >= 9) {
+        return "{$anno}/" . ($anno + 1);
     }
+    return ($anno - 1) . "/{$anno}";
 }
-function CalcolaPasqua(DateTime $year): string {
-    // Calculate Easter date using the algorithm
-    $year = (int)$year->format('Y');
-    $a = $year % 19;
-    $b = intdiv($year, 100);
-    $c = $year % 100;
+
+/**
+ * Calcola la data di Pasqua per un dato anno (algoritmo Gregoriano anonimo).
+ */
+function getPasqua(int $anno): string
+{
+    $a = $anno % 19;
+    $b = intdiv($anno, 100);
+    $c = $anno % 100;
     $d = intdiv($b, 4);
     $e = $b % 4;
     $f = intdiv($b + 8, 25);
@@ -62,336 +61,379 @@ function CalcolaPasqua(DateTime $year): string {
     $k = $c % 4;
     $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
     $m = intdiv($a + 11 * $h + 22 * $l, 451);
-    // Determine month and day
+
     $month = intdiv($h + $l - 7 * $m + 114, 31);
-    $day = (($h + $l - 7 * $m + 114) % 31) + 1;
-    return "{$year}-{$month}-{$day}";
+    $day   = (($h + $l - 7 * $m + 114) % 31) + 1;
+
+    return sprintf('%04d-%02d-%02d', $anno, $month, $day);
 }
 
-$festivi = [];
-$annoScolasticoCorrente = CalcolaAnnoScolastico(new DateTime());
-$pasqua = CalcolaPasqua(new DateTime());
-$dataPasquetta = new DateTime($pasqua);
+// -------------------------------------------------------------------
+// State
+// -------------------------------------------------------------------
+$errors        = [];
+$success       = '';
+$annoScolastico = getAnnoScolastico(new DateTime());
+$pasqua         = getPasqua((int) (new DateTime())->format('Y'));
 
-$dataPasquetta->modify('+1 day');
-$pasquetta = $dataPasquetta->format('Y-m-d');
+// Pasquetta = Pasqua + 1 giorno
+$pasquettaDate = new DateTime($pasqua);
+$pasquettaDate->modify('+1 day');
+$pasquetta = $pasquettaDate->format('Y-m-d');
 
-// Split the academic year into anno1 and anno2
-list($anno1, $anno2) = explode('/', $annoScolasticoCorrente);
+[$anno1, $anno2] = explode('/', $annoScolastico);
 
-
-// Define required holidays
-$requiredHolidays = [
-    ["date" => "$anno1-12-08", "description" => "Immacolata"],
-    ["date" => "$anno1-11-01", "description" => "Tutti i Santi"],
-    ["date" => "$anno1-12-25", "description" => "Natale"],
-    ["date" => "$anno1-12-26", "description" => "Santo Stefano"],
-    ["date" => "$anno2-01-06", "description" => "Epifania"],
-    ["date" => "$anno2-04-25", "description" => "Festa della Liberazione"],
-    ["date" => "$anno2-05-01", "description" => "Festa del Lavoro"],
-    ["date" => "$anno2-06-02", "description" => "Festa della Repubblica"],
-    ["date" => "$pasqua", "description" => "Pasqua"],
-    ["date" => "$pasquetta", "description" => "Lunedì dell'angelo"],
-    ["date" => "$anno2-08-15", "description" => "Ferragosto"]
-];
-
-// Check and insert each holiday if it doesn't exist
-foreach ($requiredHolidays as $holiday) {
-    $giorno = $holiday['date'];
-    $nome = $holiday['description'];
-    
-    $stmtCheck = $dbh->prepare("SELECT COUNT(*) FROM calendario WHERE annoScolastico = :anno AND giorno = :giorno");
-    $stmtCheck->execute([
-        ':anno' => $annoScolasticoCorrente,
-        ':giorno' => $giorno
-    ]);
-    
-    if ($stmtCheck->fetchColumn() === 0) {
-        $stmtInsert = $dbh->prepare("INSERT INTO calendario (annoScolastico, giorno, nomeChiusura) VALUES (:anno, :giorno, :nome)");
-        $stmtInsert->execute([
-            ':anno' => $annoScolasticoCorrente,
-            ':giorno' => $giorno,
-            ':nome' => $nome
-        ]);
+// -------------------------------------------------------------------
+// Fetch school year dates from DB
+// -------------------------------------------------------------------
+$schoolStart = '';
+$schoolEnd   = '';
+try {
+    $stmt = $dbh->prepare(
+        'SELECT startDate, endDate FROM progetto WHERE nomeProgetto = :nome LIMIT 1'
+    );
+    $stmt->execute([':nome' => 'orario']);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row) {
+        $schoolStart = $row['startDate'] ?? '';
+        $schoolEnd   = $row['endDate'] ?? '';
     }
+} catch (PDOException $e) {
+    error_log('Recupero date anno scolastico: ' . $e->getMessage());
 }
-// Management of dynamic addition and saving
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token']) && $_POST['csrf_token'] === $_SESSION['csrf_token']) {
-    if (isset($_POST['data']) && isset($_POST['descrizione'])) {
-        $data = $_POST['data'];
-        $descrizione = $_POST['descrizione'];
-        
-        if (!empty($data)) {
+
+// -------------------------------------------------------------------
+// POST handler – school year dates
+// -------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $postedToken = $_POST['csrf_token'] ?? '';
+
+    if (!hash_equals($_SESSION['csrf_token'], $postedToken)) {
+        $errors[] = 'Token di sicurezza non valido. Riprova.';
+    } elseif ($_POST['action'] === 'save_dates') {
+        // ── Salva date inizio/fine anno scolastico ──
+        $startDate = $_POST['startDate'] ?? '';
+        $endDate   = $_POST['endDate'] ?? '';
+
+        if ($startDate !== '' && $endDate !== '' && $startDate > $endDate) {
+            $errors[] = 'La data di fine non può essere antecedente a quella di inizio.';
+        }
+
+        if (empty($errors)) {
             try {
-                $stmt = $dbh->prepare("INSERT INTO calendario (annoScolastico, giorno, nomeChiusura) VALUES (:anno, :giorno, :nome)");
-                $stmt->bindParam(':anno', $annoScolasticoCorrente, PDO::PARAM_STR);
-                $stmt->bindParam(':giorno', $data, PDO::PARAM_STR);
-                $stmt->bindParam(':nome', $descrizione, PDO::PARAM_STR);
-                $stmt->execute();
+                $stmt = $dbh->prepare(
+                    'UPDATE progetto SET startDate = :start, endDate = :end WHERE nomeProgetto = :nome'
+                );
+                $stmt->execute([
+                    ':start' => $startDate,
+                    ':end'   => $endDate,
+                    ':nome'  => 'orario',
+                ]);
+                $success  = 'Date anno scolastico salvate con successo.';
+                $schoolStart = $startDate;
+                $schoolEnd   = $endDate;
             } catch (PDOException $e) {
-                // Handle insertion error
-                echo "Errore durante l'inserimento: " . $e->getMessage();
+                $errors[] = 'Errore salvataggio date: ' . htmlspecialchars($e->getMessage());
+            }
+        }
+
+    } elseif ($_POST['action'] === 'add_chiusura') {
+        // ── Aggiungi chiusura ──
+        $data        = $_POST['data'] ?? '';
+        $descrizione = trim($_POST['descrizione'] ?? '');
+
+        if ($data === '') {
+            $errors[] = 'La data è obbligatoria.';
+        }
+        if ($descrizione === '') {
+            $errors[] = 'La descrizione è obbligatoria.';
+        }
+
+        if (empty($errors)) {
+            try {
+                $stmt = $dbh->prepare(
+                    'INSERT INTO calendario (annoScolastico, giorno, nomeChiusura) VALUES (:anno, :giorno, :nome)'
+                );
+                $stmt->execute([
+                    ':anno'   => $annoScolastico,
+                    ':giorno' => $data,
+                    ':nome'   => $descrizione,
+                ]);
+                $success = 'Chiusura aggiunta con successo.';
+            } catch (PDOException $e) {
+                $errors[] = 'Errore inserimento: ' . htmlspecialchars($e->getMessage());
             }
         }
     }
-    // Reload data after insertion to display the new entry
-    $sql = "SELECT idCalendario, giorno, nomeChiusura FROM calendario WHERE annoScolastico = :anno ORDER BY giorno";
-    $query = $dbh->prepare($sql);
-    $query->bindParam(':anno', $annoScolasticoCorrente, PDO::PARAM_STR);
-    $query->execute();
-    $festivi = $query->fetchAll(PDO::FETCH_OBJ);
-} else {
-    // Retrieve existing entries for the current school year
-    $sql = "SELECT idCalendario, giorno, nomeChiusura FROM calendario WHERE annoScolastico = :anno ORDER BY giorno";
-    $query = $dbh->prepare($sql);
-    $query->bindParam(':anno', $annoScolasticoCorrente, PDO::PARAM_STR);
-    $query->execute();
-    $festivi = $query->fetchAll(PDO::FETCH_OBJ);
 }
+
+// -------------------------------------------------------------------
+// Auto-seed required holidays for current school year
+// -------------------------------------------------------------------
+$requiredHolidays = [
+    ["date" => "{$anno1}-10-04", "description" => "San Francesco"],
+    ["date" => "{$anno1}-11-01", "description" => "Tutti i Santi"],
+    ["date" => "{$anno1}-12-08", "description" => "Immacolata"],
+    ["date" => "{$anno1}-12-25", "description" => "Natale"],
+    ["date" => "{$anno1}-12-26", "description" => "Santo Stefano"],
+    ["date" => "{$anno2}-01-06", "description" => "Epifania"],
+    ["date" => "{$anno2}-04-25", "description" => "Festa della Liberazione"],
+    ["date" => "{$anno2}-05-01", "description" => "Festa del Lavoro"],
+    ["date" => "{$anno2}-06-02", "description" => "Festa della Repubblica"],
+    ["date" => $pasqua,          "description" => "Pasqua"],
+    ["date" => $pasquetta,       "description" => "Lunedì dell'Angelo"],
+    ["date" => "{$anno2}-08-15", "description" => "Ferragosto"],
+];
+
+try {
+    foreach ($requiredHolidays as $holiday) {
+        $stmtCheck = $dbh->prepare(
+            'SELECT COUNT(*) FROM calendario WHERE annoScolastico = :anno AND giorno = :giorno'
+        );
+        $stmtCheck->execute([
+            ':anno'  => $annoScolastico,
+            ':giorno' => $holiday['date'],
+        ]);
+
+        if ((int) $stmtCheck->fetchColumn() === 0) {
+            $stmtInsert = $dbh->prepare(
+                'INSERT INTO calendario (annoScolastico, giorno, nomeChiusura) VALUES (:anno, :giorno, :nome)'
+            );
+            $stmtInsert->execute([
+                ':anno'  => $annoScolastico,
+                ':giorno' => $holiday['date'],
+                ':nome'   => $holiday['description'],
+            ]);
+        }
+    }
+} catch (PDOException $e) {
+    error_log('Auto-seed festività: ' . $e->getMessage());
+}
+
+// -------------------------------------------------------------------
+// Fetch all holidays for current school year
+// -------------------------------------------------------------------
+try {
+    $stmt = $dbh->prepare(
+        'SELECT idCalendario, giorno, nomeChiusura FROM calendario '
+        . 'WHERE annoScolastico = :anno ORDER BY giorno'
+    );
+    $stmt->execute([':anno' => $annoScolastico]);
+    $festivi = $stmt->fetchAll(PDO::FETCH_OBJ);
+} catch (PDOException $e) {
+    $errors[] = 'Errore nel recupero delle festività: ' . htmlspecialchars($e->getMessage());
+    $festivi = [];
+}
+
+$pageTitle = 'OggiInLab | Calendario Scolastico';
+$pageCsrf  = true;
 ?>
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-    <meta name="csrf-token" content="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-    <title>OggiInLab | Calendario scolastico</title>
-    <!-- Dark theme Bootswatch Cyborg -->
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
+<?php include __DIR__ . '/includes/header.php'; ?>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
-    <style>
-        body {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-        }
-        .card {
-            background-color: #2c2c2c !important;
-            border-color: #444;
-        }
-        .btn-link.text-primary {
-            color: #0d6efd !important;
-        }
-        .bg-dark {
-        background-color: #1e1e1e !important;
-        }
-        .text-white {
-            color: #f8f9fa !important;
-        }
-        .form-control.bg-dark {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-            border-color: #444;
-        }
-        .btn.btn-primary {
-        background-color: #0d6efd !important; 
-        border-color: #0d6efd !important;
-        color: white !important;
-        }
+<div class="container mt-4">
 
-        .btn.btn-primary:hover {
-            background-color: #0a58ca !important; 
-            border-color: #0a58ca !important;
-            color: white !important;
-        }
-        .form-label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        }
+    <!-- Error alerts -->
+    <?php if (!empty($errors)): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Chiudi"></button>
+            <?php foreach ($errors as $error): ?>
+                <p class="mb-0"><?= htmlspecialchars($error) ?></p>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
-        input[type="file"] {
-            padding: 10px !important;
-            border-radius: 4px;
-        }
-        input[type="file"] {
-            background-color: #1e1e1e !important;
-            color: #f8f9fa !important;
-            border: 2px solid #444 !important;
-            padding: 10px !important;
-            border-radius: 4px !important;
-        }
-        .btn-link.text-primary {
-            font-size: 1.2rem; 
-            padding: 0;
-        }
+    <!-- Success alert -->
+    <?php if ($success !== ''): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Chiudi"></button>
+            <i class="fa-solid fa-check-circle me-2"></i><?= htmlspecialchars($success) ?>
+        </div>
+    <?php endif; ?>
 
-        form.d-inline.mt-2 {
-            margin-top: 15px;
-        }
-        .form-control {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-        .form-select {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
+    <h4 class="mb-4 text-center"><i class="fa-solid fa-calendar-days me-2"></i>Pannello di controllo amministratore</h4>
 
-    </style>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    </head>
+    <!-- ── Form: Date anno scolastico ── -->
+    <div class="card p-4 mb-4">
+        <h5 class="mb-3"><i class="fa-solid fa-calendar-week me-2"></i>Date anno scolastico</h5>
+        <p class="text-muted small">
+            Le date di inizio/fine anno vanno impostate una sola volta all'inizio dell'anno
+            secondo il calendario scolastico di riferimento. Faranno parte del progetto "orario scolastico".
+        </p>
 
-<body>
-    <?php include "includes/header.php"; ?>
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+            <input type="hidden" name="action" value="save_dates">
 
-        <div class="container mt-5">
-            <div class="row">
-                <h4 class="mb-3 text-center">Pannello di controllo amministratore</h4>
-            </div>
-            <!--  New form for school year dates -->
-            <form method="post" action="">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-                <div class="row mb-3">
-                    <div class="col">
-                        <label for="startDate" class="form-label">Data inizio anno scolastico:</label>
-                        <input type="date" class="form-control" name="startDate" required id="startDate">
-                    </div>
-                    <div class="col">
-                        <label for="endDate" class="form-label">Data fine anno scolastico:</label>
-                        <input type="date" class="form-control" name="endDate" required id="endDate">
-                    </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="startDate" class="form-label">Data inizio anno scolastico</label>
+                    <input type="date"
+                           class="form-control"
+                           id="startDate"
+                           name="startDate"
+                           value="<?= htmlspecialchars($schoolStart) ?>"
+                           required>
                 </div>
-                <!-- Added submit button -->
-                <div class="row">
-                <h6>*Le date di inizio/fine anno vanno impostate 1 volta sola all'inizio dell'anno secondo il calendario scolastico di riferimento, faranno parte del progetto "orario scolastico"</h6>
-                    <div class="col text-center">
-                        <button type="submit" class="btn btn-primary btn-lg">Salva date inizio/fine anno</button>
-                    </div>
-                    
-                </div>
-            </form>
-            <div class="row mb-4">
-                <div class="col-md-8 offset-md-2">
-                    <h5>Festività e chiusure per l'anno scolastico <?= htmlspecialchars($annoScolasticoCorrente) ?></h5>
-                    <h6>*Le festività (compresa la Pasqua) sono calcolate automaticamente ed è sconsigliabile cancellarle. Aggiungere solo le chiusure e/o le sospensioni didattiche secondo l'autonomia d'Istituto</h6>
-                    <?php if (!empty($festivi)) : ?>
-                        <form method="post" action="">
-                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-                            <table class="table table-striped table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Descrizione</th>
-                                        <th>Azioni</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($festivi as $festa) : ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars(date('d/m/Y', strtotime($festa->giorno))) ?></td>
-                                            <td><?= htmlspecialchars($festa->nomeChiusura) ?></td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-danger btn-delete"
-                                                        data-id="<?= htmlspecialchars($festa->idCalendario) ?>">
-                                                    <i class="fas fa-trash"></i> Elimina
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </form>
-                    <?php else : ?>
-                        <p>Non ci sono festività o chiusure registrate per questo anno scolastico.</p>
-                    <?php endif; ?>
+                <div class="col-md-6">
+                    <label for="endDate" class="form-label">Data fine anno scolastico</label>
+                    <input type="date"
+                           class="form-control"
+                           id="endDate"
+                           name="endDate"
+                           value="<?= htmlspecialchars($schoolEnd) ?>"
+                           required>
                 </div>
             </div>
 
-            <div class="row">
-                <div class="col-md-8 offset-md-2">
-                    <h5>Aggiungi una nuova chiusura</h5>
-                    <form method="post" action="" id="aggiungiChiusuraForm">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-                        <input type="hidden" name="idCalendario" id="editAppointmentId">
+            <div class="text-center">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fa-solid fa-floppy-disk me-2"></i>Salva date
+                </button>
+            </div>
+        </form>
+    </div>
 
-                        <div class="mb-3">
-                            <label for="giornoChiusura" class="form-label">Data</label>
-                            <input type="date" class="form-control" id="editAppointmentData" name="data" required>
-                        </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="checkboxSospensione" name="sospensione">
-                                <label class="form-check-label" for="checkboxSospensione">
-                                    Sospensione dell'attività didattica
-                                </label>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="nomeChiusura" class="form-label">Descrizione</label>
-                            <input type="text" class="form-control" id="editAppointmentDescrizione" name="descrizione">
-                        </div>
+    <!-- ── Tabella festività ── -->
+    <div class="card p-4 mb-4">
+        <h5 class="mb-3">
+            <i class="fa-solid fa-calendar-day me-2"></i>
+            Festività e chiusure – Anno scolastico <?= htmlspecialchars($annoScolastico) ?>
+        </h5>
+        <p class="text-muted small">
+            Le festività (compresa la Pasqua) sono calcolate automaticamente ed è sconsigliabile cancellarle.
+            Aggiungere solo le chiusure e/o le sospensioni didattiche secondo l'autonomia d'Istituto.
+        </p>
 
-                        <button type="submit" class="btn btn-primary">Aggiungi chiusura</button>
-                    </form>
-                    <div id="nuoviCampi">
-                        </div>
-                    <button type="button" class="btn btn-success mt-2" id="aggiungiAltro">Aggiungi un'altra chiusura</button>
+        <?php if (!empty($festivi)): ?>
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrizione</th>
+                            <th style="width:140px;">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($festivi as $festa): ?>
+                            <tr>
+                                <td><?= htmlspecialchars(date('d/m/Y', strtotime($festa->giorno))) ?></td>
+                                <td><?= htmlspecialchars($festa->nomeChiusura) ?></td>
+                                <td>
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger btn-delete"
+                                            data-id="<?= (int) $festa->idCalendario ?>">
+                                        <i class="fa-solid fa-trash me-1"></i>Elimina
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <p class="text-muted">Nessuna festività o chiusura registrata per questo anno scolastico.</p>
+        <?php endif; ?>
+    </div>
+
+    <!-- ── Form: Aggiungi chiusura ── -->
+    <div class="card p-4 mb-4">
+        <h5 class="mb-3"><i class="fa-solid fa-plus-circle me-2"></i>Aggiungi una nuova chiusura</h5>
+
+        <form method="POST" id="aggiungiChiusuraForm">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+            <input type="hidden" name="action" value="add_chiusura">
+
+            <div class="mb-3">
+                <label for="giornoChiusura" class="form-label">Data</label>
+                <input type="date"
+                       class="form-control"
+                       id="giornoChiusura"
+                       name="data"
+                       required>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="checkboxSospensione"
+                           name="sospensione">
+                    <label class="form-check-label" for="checkboxSospensione">
+                        Sospensione dell'attività didattica
+                    </label>
                 </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="nomeChiusura" class="form-label">Descrizione</label>
+                <input type="text"
+                       class="form-control"
+                       id="nomeChiusura"
+                       name="descrizione"
+                       required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-plus me-2"></i>Aggiungi chiusura
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ── Modal conferma eliminazione ── -->
+<div class="modal fade" id="eliminaEventoModal" tabindex="-1" aria-labelledby="eliminaEventoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eliminaEventoModalLabel">Conferma eliminazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            <div class="modal-body">
+                Sei sicuro di voler eliminare questa voce dal calendario?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <form method="POST" action="assets/utils/elimina_calendario.php">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+                    <input type="hidden" name="idCalendario" id="modalDeleteId">
+                    <button type="submit" class="btn btn-danger">Elimina</button>
+                </form>
             </div>
         </div>
+    </div>
+</div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    'use strict';
 
-        <div class="modal fade" id="eliminaEventoModal" tabindex="-1" aria-labelledby="eliminaEventoModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="eliminaEventoModalLabel">Conferma eliminazione</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        Sei sicuro di voler eliminare questo evento?
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                        <form id="eliminaEventoForm" method="post" action="assets/utils/elimina_calendario.php">
-                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-                            <input type="hidden" name="idCalendario" id="modalDeleteId">
-                            <button type="submit" class="btn btn-danger">Elimina</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+    // ── Checkbox sospensione → auto-compila descrizione ──
+    var checkbox = document.getElementById('checkboxSospensione');
+    var descInput = document.getElementById('nomeChiusura');
 
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            var counter = 0;
+    if (checkbox && descInput) {
+        function updateDescrizione() {
+            if (checkbox.checked) {
+                descInput.value = 'Sospensione dell\'attività didattica';
+                descInput.readOnly = true;
+            } else {
+                descInput.value = '';
+                descInput.readOnly = false;
+            }
+        }
+        checkbox.addEventListener('change', updateDescrizione);
+    }
 
-            $("#aggiungiAltro").click(function() {
-                counter++;
-                var newDiv = $('<div class="row mb-3" id="campo' + counter + '">');
-                newDiv.append('<div class="col-md-6"><label for="dataNuova' + counter + '" class="form-label">Data</label><input type="date" class="form-control" id="dataNuova' + counter + '" name="nuove_chiusure[' + counter + '][data]" required></div>');
-                newDiv.append('<div class="col-md-6"><label for="descrizioneNuova' + counter + '" class="form-label">Descrizione</label><input type="text" class="form-control" id="descrizioneNuova' + counter + '" name="nuove_chiusure[' + counter + '][descrizione]"></div>');
-                $("#nuoviCampi").append(newDiv);
-            });
-
-            
-
-            $(".btn-delete").click(function() {
-                var id = $(this).data('id');
-                $("#modalDeleteId").val(id);
-                $("#eliminaEventoModal").modal('show');
-            });
-            // Management of suspension checkbox
-                $('#checkboxSospensione').change(function() {
-                    const $descrizione = $('#editAppointmentDescrizione');
-                    if ($(this).is(':checked')) {
-                        $descrizione
-                            .val('Sospensione dell’attività didattica')
-                            .prop('readonly', true);
-                    } else {
-                        $descrizione
-                            .val('')
-                            .prop('readonly', false);
-                    }
-                }).change(); // Set initial state
-                });
-    </script>
-     <?php include 'includes/footer.php';?>
-    </body>
-</html>
+    // ── Pulsanti elimina → modal ──
+    document.querySelectorAll('.btn-delete').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var id = this.getAttribute('data-id');
+            document.getElementById('modalDeleteId').value = id;
+            var modal = new bootstrap.Modal(document.getElementById('eliminaEventoModal'));
+            modal.show();
+        });
+    });
+});
+</script>
+<?php include __DIR__ . '/includes/footer.php'; ?>

@@ -3,12 +3,13 @@
 // Import appointments from the "orario_settimana" table to the "appuntamento" table
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 session_start();
 header('Content-Type: application/json');
 include "../../includes/config.php";
+require_once __DIR__ . '/gantt_json_helper.php';
 // Retrieve the project "orario"
 $stmt = $dbh->prepare("SELECT * FROM progetto WHERE nomeProgetto = :nome");
 $stmt->execute(['nome' => 'orario']);
@@ -135,6 +136,9 @@ $response = [
     'status'   => 'success',
     'message'  => 'Operazione completata con successo!' 
 ];
+
+// Rigenera il JSON pubblico
+regenerateGanttJson();
 
 echo json_encode($response);
 exit;

@@ -2,7 +2,7 @@
 // edit-profile.php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 session_start();
@@ -28,6 +28,10 @@ if (!$currentAdmin) {
 $error = ""; $msg = "";
 
 if (isset($_POST['submit'])) {
+    // --- CSRF validation ---
+    if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+        $error = "Token di sicurezza non valido. Riprova.";
+    } else {
     $newNome = $_POST['nomeCompleto'];
     $newEmail = $_POST['adminEmail'];
     $newUsername = $_POST['userName'];
@@ -61,114 +65,29 @@ if (isset($_POST['submit'])) {
             }
         }
     }
+    } // fine CSRF else
 }
-?>
 
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <title>OggiInLab | Modifica profilo</title>
-    <!-- Dark theme Bootswatch Cyborg -->
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
-
-    <!-- FONT AWESOME STYLE  -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- GOOGLE FONT -->
-    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
-    <style>
-        body {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-        }
-        .card {
-            background-color: #2c2c2c !important;
-            border-color: #444;
-        }
-        .btn-link.text-primary {
-            color: #0d6efd !important;
-        }
-        .bg-dark {
-        background-color: #1e1e1e !important;
-        }
-        .text-white {
-            color: #f8f9fa !important;
-        }
-        .form-control.bg-dark {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-            border-color: #444;
-        }
-        .btn.btn-primary {
-        background-color: #0d6efd !important; 
-        border-color: #0d6efd !important;
-        color: white !important;
-        }
-
-        .btn.btn-primary:hover {
-            background-color: #0a58ca !important; 
-            border-color: #0a58ca !important;
-            color: white !important;
-        }
-        .form-label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        }
-
-        
-        input[type="file"] {
-            padding: 10px !important;
-            border-radius: 4px;
-        }
-        input[type="file"] {
-            background-color: #1e1e1e !important;
-            color: #f8f9fa !important;
-            border: 2px solid #444 !important;
-            padding: 10px !important;
-            border-radius: 4px !important;
-        }
-        .btn-link.text-primary {
-            font-size: 1.2rem; 
-            padding: 0;
-        }
-
-       
-        form.d-inline.mt-2 {
-            margin-top: 15px;
-        }
-        .form-control {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-        .form-select {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-
-    </style>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-</head>
-<script type="text/javascript">
+$pageTitle = 'OggiInLab | Modifica profilo';
+$pageHeadScripts = '<script type="text/javascript">
     function validateForm() {
         if (document.modifyadmin.nomeCompleto.value == "") {
             alert("Inserisci il nome completo");
             return false;
         }
         if (document.modifyadmin.adminEmail.value == "") {
-            alert("Inserisci l'email");
+            alert("Inserisci l\'email");
             return false;
         }
         if (document.modifyadmin.userName.value == "") {
-            alert("Inserisci l'username");
+            alert("Inserisci l\'username");
             return false;
         }
         return true;
     }
-</script>
-
-<body>
-    <?php include('includes/header.php'); ?>
+</script>';
+?>
+<?php include('includes/header.php'); ?>
     <div class="content-wrapper">
         <div class="container">
             <div class="row pad-botm">
@@ -189,6 +108,7 @@ if (isset($_POST['submit'])) {
                         </div>
                         <div class="panel-body">
                             <form role="form" name="modifyadmin" method="post" onSubmit="return validateForm();">
+                                <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>" />
                                 <div class="form-group">
                                     <label>Nome completo</label>
                                     <input class="form-control" type="text" name="nomeCompleto" value="<?php echo htmlentities($currentAdmin['nomeCompleto']); ?>" required>
@@ -210,7 +130,3 @@ if (isset($_POST['submit'])) {
         </div>
     </div>
     <?php include('includes/footer.php'); ?>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
-</body>
-</html>

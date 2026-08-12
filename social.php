@@ -1,7 +1,7 @@
 <?php
 /*
  * OggiInLab
- * Copyright (c) 2025 Sergio Ferraro
+ * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
 
@@ -19,213 +19,183 @@ if (empty($_SESSION["alogin"])) {
 $user = $_SESSION['id'];
 $pdo = $GLOBALS['dbh'];
 
+// 1. Initialize errors array
+$errors = [];
+
 // New Post Form Handling
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['submit_post'])) {
-        $content = htmlspecialchars(trim($_POST['content']));
-        $image_url = null;
+    // 2. CSRF validation for all POST handlers
+    $postedToken = $_POST['_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'], $postedToken)) {
+        $errors[] = "Token di sicurezza non valido. Riprova.";
+    } else {
+        if (isset($_POST['submit_post'])) {
+            $content = trim($_POST['content']);
+            $image_url = null;
 
-        // Upload image
-        if (!empty($_FILES['image']['name'])) {
-            $target_dir = "uploads/";
-            $target_file = $target_dir . basename($_FILES["image"]["name"]);
-            $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+            // Upload image
+            if (!empty($_FILES['image']['name'])) {
+                $target_dir = "uploads/";
+                $target_file = $target_dir . basename($_FILES["image"]["name"]);
+                $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
 
-            // Check file type (JPG, PNG, JPEG)
-            if ($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg") {
-                die("Solo immagini JPG, PNG o JPEG.");
+                // 3a. Validate MIME type (not just extension)
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime_type = finfo_file($finfo, $_FILES["image"]["tmp_name"]);
+                finfo_close($finfo);
+
+                $allowed_mimes = ['image/jpeg', 'image/png'];
+                if (!in_array($mime_type, $allowed_mimes)) {
+                    $errors[] = "Solo immagini JPG, PNG o JPEG.";
+                }
+                // 3b. Validate file size (max 500KB)
+                elseif ($_FILES["image"]["size"] > 500 * 1024) {
+                    $errors[] = "L'immagine supera le 500KB.";
+                } else {
+                    // Resize and save the image
+                    $newFileName = uniqid() . "." . $imageFileType;
+                    $target_file = $target_dir . $newFileName;
+
+                    if (isset($_FILES["image"]["tmp_name"])) {
+                        list($width, $height) = getimagesize($_FILES["image"]["tmp_name"]);
+                        $width = (int)$width;
+                        $height = (int)$height;
+
+                        $maxWidth = 800;
+                        $maxHeight = 600;
+                        $ratio = min($maxWidth / $width, $maxHeight / $height);
+
+                        $newWidth = (int)($width * $ratio);
+                        $newHeight = (int)($height * $ratio);
+
+                        $src = null;
+                        if ($mime_type === 'image/jpeg') {
+                            $src = imagecreatefromjpeg($_FILES["image"]["tmp_name"]);
+                        } elseif ($mime_type === 'image/png') {
+                            $src = imagecreatefrompng($_FILES["image"]["tmp_name"]);
+                        }
+
+                        // 3c. Use errors array instead of die()
+                        if (!$src) {
+                            $errors[] = "Errore nel caricamento dell'immagine.";
+                        } else {
+                            $dst = imagecreatetruecolor($newWidth, $newHeight);
+                            imagecopyresampled(
+                                $dst,
+                                $src,
+                                0, 0,
+                                0, 0,
+                                $newWidth, $newHeight,
+                                $width, $height
+                            );
+
+                            if ($mime_type === 'image/jpeg') {
+                                imagejpeg($dst, $target_file);
+                            } elseif ($mime_type === 'image/png') {
+                                imagepng($dst, $target_file);
+                            }
+
+                            imagedestroy($src);
+                            imagedestroy($dst);
+
+                            $image_url = $target_file;
+                        }
+                    }
+                }
             }
 
-            // Resize and save the image
-            $uploadOk = 1;
-            $newFileName = uniqid() . "." . $imageFileType;
-            $target_file = $target_dir . $newFileName;
-
-            if (isset($_FILES["image"]["tmp_name"])) {
-                list($width, $height) = getimagesize($_FILES["image"]["tmp_name"]);
-                $width = (int)$width;
-                $height = (int)$height;
-
-                $maxWidth = 800;
-                $maxHeight = 600;
-                $ratio = min($maxWidth / $width, $maxHeight / $height);
-
-                $newWidth = (int)($width * $ratio);
-                $newHeight = (int)($height * $ratio);
-
-                $src = null;
-                if ($imageFileType == "jpg" || $imageFileType == "jpeg") {
-                    $src = imagecreatefromjpeg($_FILES["image"]["tmp_name"]);
-                } elseif ($imageFileType == "png") {
-                    $src = imagecreatefrompng($_FILES["image"]["tmp_name"]);
-                }
-
-                if (!$src) {
-                    die("Errore nel caricamento dell'immagine.");
-                }
-
-                $dst = imagecreatetruecolor($newWidth, $newHeight);
-                imagecopyresampled(
-                    $dst,
-                    $src,
-                    0, 0,
-                    0, 0,
-                    $newWidth, $newHeight,
-                    $width, $height
-                );
-
-                if ($imageFileType == "jpg" || $imageFileType == "jpeg") {
-                    imagejpeg($dst, $target_file);
-                } elseif ($imageFileType == "png") {
-                    imagepng($dst, $target_file);
-                }
-
-                imagedestroy($src);
-                imagedestroy($dst);
-
-                $image_url = $target_file;
+            // 3d. Insert only if no errors occurred
+            if (empty($errors)) {
+                // 3e. Store raw content (no htmlspecialchars here — escape on output only to avoid double-encoding)
+                $stmt = $pdo->prepare("INSERT INTO posts (user_id, content, image_url) VALUES (?, ?, ?)");
+                $stmt->execute([$user, $content, $image_url]);
             }
-        }
+        } elseif (isset($_POST['delete_post'])) {
+            $post_id = intval($_POST['post_id']);
 
-        // Insert the post into the database
-        $stmt = $pdo->prepare("INSERT INTO posts (user_id, content, image_url) VALUES (?, ?, ?)");
-        $stmt->execute([$user, $content, $image_url]);
-    }  elseif (isset($_POST['delete_post'])) {
-        $post_id = intval($_POST['post_id']);
-    
-        // Verify that the user is the owner of the post
-        $stmt_check = $pdo->prepare("SELECT user_id FROM posts WHERE id = ?");
-        $stmt_check->execute([$post_id]);
-        $row = $stmt_check->fetch();
-    
-        if ($row && $row['user_id'] == $user) {
-            // Delete comments associated with the post
-            $stmt_delete_comments = $pdo->prepare("DELETE FROM comments WHERE post_id = ?");
-            $stmt_delete_comments->execute([$post_id]);
-            // Delete likes associated with the post
-            $stmt_delete_likes = $pdo->prepare("DELETE FROM likes WHERE post_id = ?");
-            $stmt_delete_likes->execute([$post_id]);
-    
-            // Delete the post
-            $stmt_delete = $pdo->prepare("DELETE FROM posts WHERE id = ?");
-            $stmt_delete->execute([$post_id]);
+            // Verify that the user is the owner of the post
+            $stmt_check = $pdo->prepare("SELECT user_id FROM posts WHERE id = ?");
+            $stmt_check->execute([$post_id]);
+            $row = $stmt_check->fetch();
+
+            if ($row && $row['user_id'] == $user) {
+                // Delete comments associated with the post
+                $stmt_delete_comments = $pdo->prepare("DELETE FROM comments WHERE post_id = ?");
+                $stmt_delete_comments->execute([$post_id]);
+                // Delete likes associated with the post
+                $stmt_delete_likes = $pdo->prepare("DELETE FROM likes WHERE post_id = ?");
+                $stmt_delete_likes->execute([$post_id]);
+
+                // Delete the post
+                $stmt_delete = $pdo->prepare("DELETE FROM posts WHERE id = ?");
+                $stmt_delete->execute([$post_id]);
+            }
+        } elseif (isset($_POST['like_post'])) {
+            $post_id = intval($_POST['post_id']);
+
+            // Check if the user has already liked the post
+            $stmt_check = $pdo->prepare("SELECT * FROM likes WHERE post_id = ? AND user_id = ?");
+            $stmt_check->execute([$post_id, $user]);
+
+            if ($stmt_check->rowCount() === 0) {
+                // Insert like
+                $stmt = $pdo->prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)");
+                $stmt->execute([$post_id, $user]);
+            }
+        } elseif (isset($_POST['comment_post'])) {
+            $post_id = intval($_POST['post_id']);
+            // 4. Store raw comment content (escape on output only to avoid double-encoding)
+            $content = trim($_POST['comment']);
+            // Insert comment
+            $stmt = $pdo->prepare("INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)");
+            $stmt->execute([$post_id, $user, $content]);
         }
-    } elseif (isset($_POST['like_post'])) {
-        $post_id = intval($_POST['post_id']);
-        
-        // Check if the user has already liked the post
-        $stmt_check = $pdo->prepare("SELECT * FROM likes WHERE post_id = ? AND user_id = ?");
-        $stmt_check->execute([$post_id, $user]);
-        
-        if ($stmt_check->rowCount() === 0) {
-            // Insert like
-            $stmt = $pdo->prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)");
-            $stmt->execute([$post_id, $user]);
-        }
-    } elseif (isset($_POST['comment_post'])) {
-        $post_id = intval($_POST['post_id']);
-        $content = htmlspecialchars(trim($_POST['comment']));
-        // Insert comment
-        $stmt = $pdo->prepare("INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)");
-        $stmt->execute([$post_id, $user, $content]);
     }
 }
 
 // Retrieve all posts with the author's name
 $stmt = $pdo->query("SELECT p.*, a.nomeCompleto FROM posts p JOIN admin a ON p.user_id = a.id ORDER BY created_at DESC");
 $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// 5. Pre-fetch all likes in a single query (avoid N+1)
+$post_ids = array_column($posts, 'id');
+$like_map = [];
+$has_liked_map = [];
+if (!empty($post_ids)) {
+    $placeholders = implode(',', array_fill(0, count($post_ids), '?'));
+    $stmt_likes = $pdo->prepare("SELECT post_id, COUNT(*) as cnt FROM likes WHERE post_id IN ($placeholders) GROUP BY post_id");
+    $stmt_likes->execute($post_ids);
+    foreach ($stmt_likes->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $like_map[$row['post_id']] = $row['cnt'];
+    }
+
+    // Also pre-fetch which posts the current user has liked
+    $stmt_user_likes = $pdo->prepare("SELECT post_id FROM likes WHERE user_id = ? AND post_id IN ($placeholders)");
+    $stmt_user_likes->execute(array_merge([$user], $post_ids));
+    foreach ($stmt_user_likes->fetchAll(PDO::FETCH_COLUMN) as $pid) {
+        $has_liked_map[$pid] = true;
+    }
+}
+
+$pageTitle = 'OggiInLab | Bacheca';
 ?>
-
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <title>OggiInLab | Bacheca</title>
-    
-    <!-- Dark theme with Bootswatch Cyborg -->
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
-    
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
-    <style>
-        body {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-        }
-        .card {
-            background-color: #2c2c2c !important;
-            border-color: #444;
-        }
-        .btn-link.text-primary {
-            color: #0d6efd !important;
-        }
-        .bg-dark {
-        background-color: #1e1e1e !important;
-        }
-        .text-white {
-            color: #f8f9fa !important;
-        }
-        .form-control.bg-dark {
-            background-color: #1e1e1e;
-            color: #f8f9fa;
-            border-color: #444;
-        }
-        .btn.btn-primary {
-        background-color: #0d6efd !important; /* Light blue color */
-        border-color: #0d6efd !important;
-        color: white !important;
-        }
-
-        .btn.btn-primary:hover {
-            background-color: #0a58ca !important; /* Darker blue on hover */
-            border-color: #0a58ca !important;
-            color: white !important;
-        }
-        .form-label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        }
-
-        /* Style for file input */
-        input[type="file"] {
-            padding: 10px !important;
-            border-radius: 4px;
-        }
-        input[type="file"] {
-            background-color: #1e1e1e !important;
-            color: #f8f9fa !important;
-            border: 2px solid #444 !important;
-            padding: 10px !important;
-            border-radius: 4px !important;
-        }
-        .btn-link.text-primary {
-            font-size: 1.2rem; /* Emoji size */
-            padding: 0;
-        }
-
-        /* Distance between image and like button */
-        form.d-inline.mt-2 {
-            margin-top: 15px;
-        }
-        .comment-input {
-            background-color: #5c5e62 !important;
-            color: white !important;
-        }
-
-    </style>
-</head>
-<body>
 <?php include "includes/header.php"; ?>
     <div class="container py-4">
+
+        <!-- Error messages -->
+        <?php if (!empty($errors)): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <?php foreach ($errors as $err): ?>
+                    <div><?= htmlspecialchars($err) ?></div>
+                <?php endforeach; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+
         <!-- New Post Form -->
         <form method="post" enctype="multipart/form-data" class="mb-4 p-3 rounded bg-dark text-white">
+            <!-- 7. CSRF token -->
+            <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
             <div class="mb-3">
                 <label for="content" class="form-label">Scrivi un messaggio:</label>
                 <textarea name="content" id="content" rows="2" 
@@ -258,16 +228,19 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             <!-- Like -->
             <form method="post" class="d-inline mt-2">
+                <!-- 7. CSRF token -->
+                <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                 <?php
-                $like_exists = $pdo->prepare("SELECT COUNT(*) FROM likes WHERE post_id = ? AND user_id = ?");
-                $like_exists->execute([$post['id'], $user]);
-                $has_liked = $like_exists->fetchColumn() > 0;
+                // 5. Use pre-fetched data instead of individual queries
+                $has_liked = isset($has_liked_map[$post['id']]);
+                // 6. Use pre-fetched like count (safe, no SQL injection)
+                $like_count = $like_map[$post['id']] ?? 0;
                 ?>
                 
                 <?php if (!$has_liked): ?>
                     <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
                     <button type="submit" name="like_post" class="btn btn-link text-primary p-0">
-                        👍 <?= $pdo->query("SELECT COUNT(*) FROM likes WHERE post_id = " . $post['id'])->fetchColumn() ?>
+                        👍 <?= $like_count ?>
                     </button>
                 <?php else: ?>
                     <p>Già mi piace</p>
@@ -293,6 +266,8 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             <!-- Comment form -->
             <form method="post" class="mt-2">
+                <!-- 7. CSRF token -->
+                <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                 <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
                 <div class="input-group">
                 <input type="text" name="comment" class="form-control comment-input" placeholder="Scrivi un commento..." required>
@@ -303,6 +278,8 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <!-- "Delete" button only for the author -->
             <?php if ($post['user_id'] == $user): ?>
                 <form method="post" class="mt-2">
+                    <!-- 7. CSRF token -->
+                    <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
                     <button type="submit" name="delete_post" class="btn btn-danger" onclick="return confirm('Sei sicuro di voler eliminare questo post?')">Elimina</button>
                 </form>
@@ -313,10 +290,3 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     </div>
     <?php include 'includes/footer.php';?>
-
-<!-- SCRIPTS -->
-    <!-- Bootstrap JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" ></script>
-</body>
-</html>

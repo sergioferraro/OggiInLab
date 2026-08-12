@@ -1,478 +1,508 @@
 <?php
-// manage-project.php
-/*
+/**
+ * manage-project.php – OggiInLab: Modifica Progetto
+ *
  * OggiInLab
  * Copyright (c) 2025 Sergio Ferraro
  * Licensed under the MIT License
  */
-
+declare(strict_types=1);
 session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-include "includes/config.php";
-$nome_progetto = $desc_progetto = "";
-$id_tutor = $id_esperto = null;
-$errors = [];
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/Logger.php';
 
-// Check login session
-if (empty($_SESSION["alogin"])) {
-    header("Location: index.php");
-    exit();
+// -------------------------------------------------------------------
+// Auth guard
+// -------------------------------------------------------------------
+if (empty($_SESSION['alogin'])) {
+    header('Location: index.php');
+    exit;
 }
 
-// Get project data based on ID
+// -------------------------------------------------------------------
+// CSRF token
+// -------------------------------------------------------------------
+$_SESSION['csrf_token'] = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));
+
+// Log CSRF token generation for security auditing
+Logger::debug('csrf_token_generated', [
+    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+]);
+
+// -------------------------------------------------------------------
+// State
+// -------------------------------------------------------------------
+$errors  = [];
+$success = '';
+
+// -------------------------------------------------------------------
+// Validate project ID
+// -------------------------------------------------------------------
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    $errors[] = "Progetto non specificato.";
+    $errors[] = 'Progetto non specificato.';
 } else {
-    $projectId = intval($_GET['id']);
-    
+    $projectId = (int) $_GET['id'];
+}
+
+// -------------------------------------------------------------------
+// Fetch project data
+// -------------------------------------------------------------------
+$projectData = null;
+if (empty($errors)) {
     try {
-        // Fetch project with docente names using JOINs
-        $stmt = $dbh->prepare("SELECT 
-            p.*, 
-            t.cognome AS TutorCognome, 
-            e.cognome AS EspertoCognome 
-            FROM progetto p
-            LEFT JOIN docente t ON p.idTutor = t.idDocente
-            LEFT JOIN docente e ON p.idEsperto = e.idDocente
-            WHERE idProgetto = :id");
-        
+        $stmt = $dbh->prepare(
+            'SELECT p.*, '
+            . 't.cognome AS TutorCognome, '
+            . 'e.cognome AS EspertoCognome '
+            . 'FROM progetto p '
+            . 'LEFT JOIN docente t ON p.idTutor  = t.idDocente '
+            . 'LEFT JOIN docente e ON p.idEsperto = e.idDocente '
+            . 'WHERE p.idProgetto = :id'
+        );
         $stmt->execute([':id' => $projectId]);
         $projectData = $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        $errors[] = "Errore nel recupero dati: " . htmlspecialchars($e->getMessage());
+        $errors[] = 'Errore nel recupero dei dati: ' . htmlspecialchars($e->getMessage());
     }
 }
 
-// Handle form submission
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    error_log("manage-project.php: POST request received.");
-    error_log("manage-project.php: GET parameters during POST: " . var_export($_GET, true));
-    error_log("manage-project.php: Project ID variable (before use): " . var_export($projectId ?? 'not set', true));
+if (empty($errors) && $projectData === null) {
+    $errors[] = 'Progetto non trovato.';
+}
 
-    // Validate and sanitize inputs
-    $formData = [
-        'nomeProgetto' => $_POST['nomeProgetto'],
-        'descProgetto' => $_POST['Desc_Progetto'],
-        'idTutor' => ($_POST['id_tutor'] === '') ? null : (int)$_POST['id_tutor'],
-        'idEsperto' => ($_POST['id_esperto'] === '') ? null : (int)$_POST['id_esperto'],
-        'CNP' => $_POST['CNP'],
-        'CUP' => $_POST['CUP'],
-        'startDate' => $_POST['startDate'],
-        'endDate' => $_POST['endDate']
-    ];
+// -------------------------------------------------------------------
+// Fetch all docenti for dropdowns
+// -------------------------------------------------------------------
+try {
+    $docenti = $dbh->query(
+        'SELECT idDocente, CONCAT(nome, " ", cognome) AS FullName '
+        . 'FROM docente WHERE isDeleted <> 1 ORDER BY cognome'
+    )->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $errors[] = 'Errore nel recupero dei docenti: ' . htmlspecialchars($e->getMessage());
+    $docenti = [];
+}
+
+// -------------------------------------------------------------------
+// POST handler
+// -------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Initialize logger
+    Logger::init();
     
-    
-    // Perform validation
-    if (empty($formData['nomeProgetto']) || empty($formData['descProgetto'])) {
-        $errors[] = "Il nome e la descrizione sono obbligatori.";
-    } elseif (
-        !empty($formData['endDate']) && // Check if end_date is not empty or "0000-00-00"
-        $formData['endDate'] != "0000-00-00" &&
-        $formData['startDate'] > $formData['endDate']
-    ) {
-        $errors[] = "La data di inizio non può essere dopo quella di fine.";
-    }
-    
-    // Update query
-    if (empty($errors)) {
-        try {
-            $sqlUpdate = "
-                UPDATE progetto SET 
-                    nomeProgetto = :nome,
-                    descProgetto = :descrizione,
-                    idTutor = :tutor_id,
-                    idEsperto = :esperto_id,
-                    CNP = :cnp,
-                    CUP = :cup,
-                    startDate = :start,
-                    endDate = :end
-                WHERE idProgetto = :id";
+    // Log all POST requests to the management page
+    Logger::info('project_management_request', [
+        'method' => $_SERVER['REQUEST_METHOD'],
+        'project_id' => $projectId ?? null,
+        'has_csrf_token' => isset($_POST['_token'])
+    ]);
+    // CSRF check
+    $postedToken = $_POST['_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'], $postedToken)) {
+        Logger::warning('csrf_validation_failed', [
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            'request_uri' => $_SERVER['REQUEST_URI'] ?? 'unknown',
+            'project_id' => $projectId ?? null
+        ]);
+        $errors[] = 'Token di sicurezza non valido. Riprova.';
+    } elseif (!empty($errors)) {
+        // Already had errors (e.g. bad project ID), reject
+        $errors[] = 'Impossibile elaborare la richiesta.';
+    } else {
+        $nomeProgetto = trim($_POST['nomeProgetto'] ?? '');
+        $descProgetto = trim($_POST['Desc_Progetto'] ?? '');
+        $idTutor      = ($_POST['id_tutor'] ?? '') !== '' ? (int) $_POST['id_tutor'] : null;
+        $idEsperto    = ($_POST['id_esperto'] ?? '') !== '' ? (int) $_POST['id_esperto'] : null;
+        $cnp          = trim($_POST['CNP'] ?? '');
+        $cup          = trim($_POST['CUP'] ?? '');
+        $startDate    = $_POST['startDate'] ?? '';
+        $endDate      = $_POST['endDate'] ?? '';
+
+        // Validate
+        if ($nomeProgetto === '') {
+            Logger::warning('project_validation_error', [
+                'project_id' => $projectId,
+                'error_field' => 'nomeProgetto',
+                'message' => 'Nome progetto vuoto'
+            ]);
+            $errors[] = 'Il nome del progetto è obbligatorio.';
+        }
+        if ($descProgetto === '') {
+            Logger::warning('project_validation_error', [
+                'project_id' => $projectId,
+                'error_field' => 'Desc_Progetto',
+                'message' => 'Descrizione progetto vuota'
+            ]);
+            $errors[] = 'La descrizione del progetto è obbligatoria.';
+        }
+        if ($startDate !== '' && $endDate !== '' && $startDate > $endDate) {
+            Logger::warning('project_validation_error', [
+                'project_id' => $projectId,
+                'error_field' => 'date_range',
+                'start_date' => $startDate,
+                'end_date' => $endDate
+            ]);
+            $errors[] = 'La data di inizio non può essere dopo quella di fine.';
+        }
+
+        // Update
+        if (empty($errors)) {
+            try {
+                $stmt = $dbh->prepare(
+                    'UPDATE progetto SET '
+                    . 'nomeProgetto  = :nome, '
+                    . 'descProgetto  = :descrizione, '
+                    . 'idTutor       = :tutor_id, '
+                    . 'idEsperto     = :esperto_id, '
+                    . 'cnp           = :cnp, '
+                    . 'cup           = :cup, '
+                    . 'startDate     = :start, '
+                    . 'endDate       = :end '
+                    . 'WHERE idProgetto = :id'
+                );
+                $stmt->execute([
+                    ':nome'       => $nomeProgetto,
+                    ':descrizione' => $descProgetto,
+                    ':tutor_id'   => $idTutor,
+                    ':esperto_id' => $idEsperto,
+                    ':cnp'        => $cnp,
+                    ':cup'        => $cup,
+                    ':start'      => $startDate !== '' ? $startDate : null,
+                    ':end'        => $endDate !== '' ? $endDate : null,
+                    ':id'         => $projectId,
+                ]);
+                $success = 'Modifiche salvate con successo!';
                 
-            $stmt = $dbh->prepare($sqlUpdate);
-            
-            if ($stmt->execute([
-                ':nome' => $formData['nomeProgetto'],
-                ':descrizione' => $formData['descProgetto'],
-                ':tutor_id' => $formData['idTutor'],
-                ':esperto_id' => $formData['idEsperto'],
-                ':cnp' => $formData['CNP'],
-                ':cup' => $formData['CUP'],
-                ':start' => $formData['startDate'],
-                ':end' => $formData['endDate'],
-                ':id' => $projectId
-            ])) {
-                header("Location: manage-project.php?id={$projectId}&saved=1");
-                exit();
+                // Log the successful update action
+                Logger::success('project_update', [
+                    'project_id' => $projectId,
+                    'project_name' => $nomeProgetto,
+                    'changes' => [
+                        'tutor_id' => $idTutor,
+                        'esperto_id' => $idEsperto,
+                        'cnp' => $cnp,
+                        'cup' => $cup,
+                        'start_date' => $startDate,
+                        'end_date' => $endDate
+                    ]
+                ]);
+
+                // Re-fetch updated data
+                $stmt2 = $dbh->prepare('SELECT * FROM progetto WHERE idProgetto = :id');
+                $stmt2->execute([':id' => $projectId]);
+                $projectData = $stmt2->fetch(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                $errors[] = 'Errore database: ' . htmlspecialchars($e->getMessage());
+                Logger::error('project_update_db_error', [
+                    'project_id' => $projectId,
+                    'error_message' => $e->getMessage(),
+                    'sql_state' => $e->getCode()
+                ]);
             }
-        } catch (PDOException $e) {
-            $errors[] = "Errore database: " . htmlspecialchars($e->getMessage());
         }
     }
 }
+
+$pageTitle = 'OggiInLab | Modifica Progetto';
 ?>
-
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <title>OggiInLab | Modifica Progetto</title>
-    <!-- Dark theme Bootswatch Cyborg -->
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/cyborg/bootstrap.min.css" rel="stylesheet">
-
-    <!-- FONT AWESOME STYLE  -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- GOOGLE FONT -->
-    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
-    <style>
-    /* Sets the background color of the body to dark gray and text color to light */
-    body {
-        background-color: #1e1e1e;
-        color: #f8f9fa;
-    }
-
-    /* Sets the background color and border color for cards */
-    .card {
-        background-color: #2c2c2c !important;
-        border-color: #444;
-    }
-
-    /* Styles for primary text links, setting their color to a specific blue */
-    .btn-link.text-primary {
-        color: #0d6efd !important;
-    }
-
-    /* Overrides the default background color of dark theme elements */
-    .bg-dark {
-        background-color: #1e1e1e !important;
-    }
-
-    /* Ensures text within white context is colored light for readability */
-    .text-white {
-        color: #f8f9fa !important;
-    }
-
-    /* Styles form controls with a dark background, specific text and border colors */
-    .form-control.bg-dark {
-        background-color: #1e1e1e;
-        color: #f8f9fa;
-        border-color: #444;
-    }
-
-    /* Defines styles for primary buttons including hover effects */
-    .btn.btn-primary {
-        background-color: #0d6efd !important; /* Light blue */
-        border-color: #0d6efd !important;
-        color: white !important;
-    }
-
-    .btn.btn-primary:hover {
-        background-color: #0a58ca !important; /* Darker blue on hover */
-        border-color: #0a58ca !important;
-        color: white !important;
-    }
-
-    /* Ensures form labels are bold and have a small margin below them */
-    .form-label {
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-
-    /* Styles for file input elements, including padding and borders */
-    /* Style for the file input element */
-    input[type="file"] {
-        padding: 10px !important;
-        border-radius: 4px;
-    }
-    input[type="file"] {
-        background-color: #1e1e1e !important; /* Dark gray background */
-        color: #f8f9fa !important; /* Light text color */
-        border: 2px solid #444 !important; /* Gray border */
-        padding: 10px !important;
-        border-radius: 4px !important;
-    }
-
-    /* Sets font size and removes padding for primary text links */
-    .btn-link.text-primary {
-        font-size: 1.2rem; /* Emoji sizes */
-        padding: 0;
-    }
-
-    /* Distance between image and like button */
-    form.d-inline.mt-2 {
-        margin-top: 15px;
-    }
-
-    /* Styles form controls with a specific background and text color */
-    .form-control {
-        background-color: #5c5e62 !important;
-        color: white !important;
-    }
-
-    /* Styles select inputs with a specific background and text color */
-    .form-select {
-        background-color: #5c5e62 !important;
-        color: white !important;
-    }
-
-
-    </style>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-</head>
-<body>
-
-<?php include "includes/header.php"; ?>
+<?php include __DIR__ . '/includes/header.php'; ?>
 
 <div class="container mt-4">
-    
+
+    <!-- Error alerts -->
     <?php if (!empty($errors)): ?>
-        <div class="alert alert-danger mb-4">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Chiudi"></button>
             <?php foreach ($errors as $error): ?>
-                <p><?= htmlspecialchars($error) ?></p>
+                <p class="mb-0"><?= htmlspecialchars($error) ?></p>
             <?php endforeach; ?>
         </div>
-    <?php elseif (isset($_GET['saved'])): ?>
-        <div class="alert alert-success">Modifiche salvate con successo!</div>
     <?php endif; ?>
 
-    <!-- Project Form -->
-    <form method="POST" action="">
-        <h2>Modifica Progetto #<?= $projectId ?></h2>
-
-        <!-- Basic Details -->
-        <div class="form-group">
-            <label for="nome">Nome Progetto:</label>
-            <input type="text" name="nomeProgetto" value="<?= htmlspecialchars($projectData['nomeProgetto'] ?? '') ?>" required class="form-control form-control-lg">
+    <!-- Success alert -->
+    <?php if ($success !== ''): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Chiudi"></button>
+            <i class="fa-solid fa-check-circle me-2"></i><?= htmlspecialchars($success) ?>
         </div>
+    <?php endif; ?>
 
-        <div class="form-group">
-            <label>Descrizione:</label>
-            <textarea name="Desc_Progetto" rows="4" class="form-control"><?= htmlspecialchars($projectData['descProgetto'] ?? '') ?></textarea>
-        </div>
+    <?php if (empty($errors) && $projectData !== null): ?>
+    <!-- ── Project Form ── -->
+    <div class="card p-4">
+        <h4 class="mb-4">
+            <i class="fa-solid fa-pen-to-square me-2"></i>
+            Modifica Progetto #<?= (int) $projectId ?>
+        </h4>
 
-        <!-- CNP/CUP -->
-        <div class="row mb-3">
-            <div class="col-md-6 form-group">
-                <label>CNP:</label>
-                <input type="text" name="CNP" value="<?= htmlspecialchars($projectData['CNP'] ?? '') ?>" class="form-control">
+        <form method="POST" id="projectForm">
+            <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+
+            <!-- Nome Progetto -->
+            <div class="mb-3">
+                <label for="nomeProgetto" class="form-label">Nome Progetto</label>
+                <input type="text"
+                       id="nomeProgetto"
+                       name="nomeProgetto"
+                       value="<?= htmlspecialchars($projectData['nomeProgetto'] ?? '') ?>"
+                       required
+                       class="form-control form-control-lg">
             </div>
 
-            <div class="col-md-6 form-group">
-                <label>CUP:</label>
-                <input type="text" name="CUP" value="<?= htmlspecialchars($projectData['CUP'] ?? '') ?>" class="form-control">
-            </div>
-        </div>
-
-        <!-- Date Range -->
-        <div class="row mb-3">
-            <div class="col-md-6 form-group">
-                <label>Data Inizio:</label>
-                <input type="date" name="startDate" value="<?= htmlspecialchars($projectData['startDate'] ?? '') ?>"  class="form-control">
+            <!-- Descrizione -->
+            <div class="mb-3">
+                <label for="Desc_Progetto" class="form-label">Descrizione</label>
+                <textarea id="Desc_Progetto"
+                          name="Desc_Progetto"
+                          rows="4"
+                          required
+                          class="form-control"><?= htmlspecialchars($projectData['descProgetto'] ?? '') ?></textarea>
             </div>
 
-            <div class="col-md-6 form-group">
-                <label>Data Fine:</label>
-                <input type="date" name="endDate" value="<?= htmlspecialchars($projectData['endDate'] ?? '') ?>"  class="form-control">
+            <!-- CNP / CUP -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="CNP" class="form-label">CNP</label>
+                    <input type="text"
+                           id="CNP"
+                           name="CNP"
+                           value="<?= htmlspecialchars($projectData['cnp'] ?? '') ?>"
+                           class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label for="CUP" class="form-label">CUP</label>
+                    <input type="text"
+                           id="CUP"
+                           name="CUP"
+                           value="<?= htmlspecialchars($projectData['cup'] ?? '') ?>"
+                           class="form-control">
+                </div>
             </div>
-        </div>
 
-        <!-- Docenti Selection -->
-        <h4>Docenti Associati</h4>
+            <!-- Date Range -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="startDate" class="form-label">Data Inizio</label>
+                    <input type="date"
+                           id="startDate"
+                           name="startDate"
+                           value="<?= htmlspecialchars($projectData['startDate'] ?? '') ?>"
+                           class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label for="endDate" class="form-label">Data Fine</label>
+                    <input type="date"
+                           id="endDate"
+                           name="endDate"
+                           value="<?= htmlspecialchars($projectData['endDate'] ?? '') ?>"
+                           class="form-control">
+                </div>
+            </div>
 
-        <?php foreach (['Tutor', 'Esperto'] as $role): ?>
-            
-            <div class="border p-3 mb-4 rounded">
-                <legend><?= $role ?></legend>
-                
-                <div class="form-check form-check-inline">
-                    <input type="radio" id="<?= strtolower($role) ?>_existing"
-                        name="<?= strtolower($role).'_option' ?>" value="existing"
-                        <?= (isset($projectData['ID_'.$role]) && $projectData['ID_'.$role] != 0) ? 'checked' : '' ?>>
-                    
-                    <label for="<?= strtolower($role) ?>_existing">Seleziona esistente</label>
+            <!-- ── Tutor ── -->
+            <fieldset class="mb-4 p-3 border rounded">
+                <legend class="fs-6"><i class="fa-solid fa-chalkboard-user me-2"></i>Tutor</legend>
+
+                <div class="mb-3">
+                    <label for="tutorSelect" class="form-label">Seleziona un docente esistente:</label>
+                    <select name="id_tutor"
+                            id="tutorSelect"
+                            class="form-select">
+                        <option value="">— Scegli un tutor —</option>
+                        <?php foreach ($docenti as $doc): ?>
+                            <option value="<?= $doc['idDocente'] ?>"
+                                <?= ($projectData['idTutor'] ?? null) === $doc['idDocente'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($doc['FullName']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
-                <select name="id_<?= strtolower($role) ?>" class="form-control mt-2">
-                    <option value="">-- Selezionare --</option>
-                    <?php 
-                    try {
-                        $docQuery = $dbh->query("SELECT idDocente, CONCAT(nome,' ',cognome) AS FullName FROM docente WHERE isDeleted=0");
-                        while ($row = $docQuery->fetch(PDO::FETCH_ASSOC)): ?>
-                            <option value="<?= $row['idDocente'] ?>" 
-                                <?= (isset($projectData['id'.$role]) && $row['idDocente'] == $projectData['id'.$role]) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($row['FullName']) ?>
+                <div class="form-check">
+                    <input type="checkbox"
+                           class="form-check-input"
+                           id="newTutorToggle"
+                           checked>
+                    <label class="form-check-label" for="newTutorToggle">
+                        Oppure aggiungi un nuovo tutor
+                    </label>
+                </div>
+
+                <div id="newTutorFields" class="mt-2">
+                    <div class="row g-2">
+                        <div class="col">
+                            <input type="text"
+                                   name="tutor_nome"
+                                   placeholder="Nome"
+                                   class="form-control">
+                        </div>
+                        <div class="col">
+                            <input type="text"
+                                   name="tutor_cognome"
+                                   placeholder="Cognome"
+                                   class="form-control">
+                        </div>
+                        <div class="col-auto d-flex align-items-center">
+                            <button type="button"
+                                    id="addTutorBtn"
+                                    class="btn btn-outline-success btn-sm"
+                                    title="Aggiungi tutor">
+                                <i class="fa-solid fa-user-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- ── Esperto ── -->
+            <fieldset class="mb-4 p-3 border rounded">
+                <legend class="fs-6"><i class="fa-solid fa-user-tie me-2"></i>Esperto</legend>
+
+                <div class="mb-3">
+                    <label for="espertoSelect" class="form-label">Seleziona un docente esistente:</label>
+                    <select name="id_esperto"
+                            id="espertoSelect"
+                            class="form-select">
+                        <option value="">— Scegli un esperto —</option>
+                        <?php foreach ($docenti as $doc): ?>
+                            <option value="<?= $doc['idDocente'] ?>"
+                                <?= ($projectData['idEsperto'] ?? null) === $doc['idDocente'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($doc['FullName']) ?>
                             </option>
-                    <?php endwhile;
-                    } catch(PDOException $e) {
-                        echo '<option value="">Errore caricamento docenti</option>';
-                    }
-                    ?>
-                </select>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
 
-                <div class="form-check form-check-inline mt-3">
-            <input type="radio" 
-                id="<?= strtolower($role) ?>_new" 
-                name="<?= strtolower($role) ?>_option" 
-                value="new" 
-                data-bs-toggle="modal" 
-                data-bs-target="#<?= strtolower($role) ?>Modal"
-                <?= (empty($projectData['ID_'.$role])) ? 'checked' : '' ?>>
-            <label for="<?= strtolower($role) ?>_new">Aggiungi nuovo</label>
-        </div>
+                <div class="form-check">
+                    <input type="checkbox"
+                           class="form-check-input"
+                           id="newEspertoToggle"
+                           checked>
+                    <label class="form-check-label" for="newEspertoToggle">
+                        Oppure aggiungi un nuovo esperto
+                    </label>
+                </div>
 
-            </div> <!-- End Docenti Section -->
-        <?php endforeach; ?>
-
-        <button type="submit" class="btn btn-primary mt-4">Salva Modifiche</button>
-    </form>
-</div>
-
-  <!-- Modal TUTOR -->
-  <div class="modal fade" id="tutorModal" tabindex="-1" aria-labelledby="tutorModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="tutorForm">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="tutorModalLabel">Aggiungi Tutor</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="nomeTutor" class="form-label">Nome</label>
-                            <input type="text" name="nome" required class="form-control" id="nomeTutor">
+                <div id="newEspertoFields" class="mt-2">
+                    <div class="row g-2">
+                        <div class="col">
+                            <input type="text"
+                                   name="esperto_nome"
+                                   placeholder="Nome"
+                                   class="form-control">
                         </div>
-                        <div class="mb-3">
-                            <label for="cognomeTutor" class="form-label">Cognome</label>
-                            <input type="text" name="cognome" required class="form-control" id="cognomeTutor">
+                        <div class="col">
+                            <input type="text"
+                                   name="esperto_cognome"
+                                   placeholder="Cognome"
+                                   class="form-control">
+                        </div>
+                        <div class="col-auto d-flex align-items-center">
+                            <button type="button"
+                                    id="addEspertoBtn"
+                                    class="btn btn-outline-success btn-sm"
+                                    title="Aggiungi esperto">
+                                <i class="fa-solid fa-user-plus"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                        <button type="submit" class="btn btn-primary">Aggiungi</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                </div>
+            </fieldset>
+
+            <!-- Submit -->
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fa-solid fa-floppy-disk me-2"></i>Salva Modifiche
+            </button>
+        </form>
     </div>
-
-
-<!-- Modal ESPERTO -->
-<div class="modal fade" id="espertoModal" tabindex="-1" aria-labelledby="espertoModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="espertoForm">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="espertoModalLabel">Aggiungi Esperto</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="nomeEsperto" class="form-label">Nome</label>
-                            <input type="text" name="nome" required class="form-control" id="nomeEsperto">
-                        </div>
-                        <div class="mb-3">
-                            <label for="cognomeEsperto" class="form-label">Cognome</label>
-                            <input type="text" name="cognome" required class="form-control" id="cognomeEsperto">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                        <button type="submit" class="btn btn-primary">Aggiungi</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    <?php endif; ?>
 </div>
-
-
-<!-- Bootstrap JS -->
-<!-- FOOTER SECTION START-->
-<?php include "includes/footer.php"; ?>
-
- 
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
- // Management for the tutor's form
- const tutorForm = document.getElementById('tutorForm');
-     // Initialize modals and handle focus properly
-    const tutorModal = new bootstrap.Modal(document.getElementById('tutorModal'));
-    const espertoModal = new bootstrap.Modal(document.getElementById('espertoModal'));
-    // Tutor Modal Focus Handling
-    tutorModal._element.addEventListener('shown.bs.modal', function () {
-        this.querySelector('input[name="nome"]').focus();
-    });
+document.addEventListener('DOMContentLoaded', function () {
+    'use strict';
 
-    // Esperto Modal Focus Handling
-    espertoModal._element.addEventListener('shown.bs.modal', function () {
-        this.querySelector('input[name="nome"]').focus();
-    });
+    // ── Toggle new-fields visibility ──
+    function setupToggle(checkboxId, fieldsId) {
+        var cb = document.getElementById(checkboxId);
+        var fields = document.getElementById(fieldsId);
+        if (!cb || !fields) return;
 
-    // Optional: Handle closing to return focus to the triggering element
-    document.querySelectorAll('[data-bs-target="#tutorModal"]').forEach(trigger => {
-        trigger.addEventListener('click', function () {
-            // Focus returns here after closing
-        });
-    });
-    if (tutorForm) {
-        tutorForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            addDocente('tutor');
-        });
+        function update() {
+            fields.style.display = cb.checked ? 'block' : 'none';
+        }
+        cb.addEventListener('change', update);
+        update();
     }
 
-    // Management for the expert's form
-    const espertoForm = document.getElementById('espertoForm');
-    if (espertoForm) {
-        espertoForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            addDocente('esperto');
-        });
-    }
+    setupToggle('newTutorToggle', 'newTutorFields');
+    setupToggle('newEspertoToggle', 'newEspertoFields');
 
+    // ── AJAX: add docente ──
     function addDocente(type) {
-        const form = type === 'tutor' ? document.getElementById('tutorForm') : document.getElementById('espertoForm');
-        const formData = new FormData(form);
+        var nomeInput    = document.querySelector('[name="' + type + '_nome"]');
+        var cognomeInput = document.querySelector('[name="' + type + '_cognome"]');
+
+        if (!nomeInput || !cognomeInput) return;
+
+        var nome    = nomeInput.value.trim();
+        var cognome = cognomeInput.value.trim();
+
+        if (!nome || !cognome) {
+            alert('Nome e cognome sono obbligatori.');
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append('nome', nome);
+        formData.append('cognome', cognome);
 
         fetch('assets/utils/add_docente.php', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            console.log("Risposta ricevuta:", data);
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
             if (data.success) {
-                const selectId = type === 'tutor' ? 'tutorSelect' : 'espertoSelect';
-                const select = document.getElementById(selectId);
+                var selectId = type === 'tutor' ? 'tutorSelect' : 'espertoSelect';
+                var select = document.getElementById(selectId);
 
-                const option = new Option(data.docente.cognome + ' ' + data.docente.nome, data.docente.id, true, true);
-                select.add(option);
-                select.value = data.docente.id;
+                if (select) {
+                    var option = new Option(
+                        data.docente.cognome + ' ' + data.docente.nome,
+                        data.docente.id,
+                        true,
+                        true
+                    );
+                    select.add(option);
+                    select.value = data.docente.id;
+                }
 
-                // Select the "existing" radio button
-                document.getElementById(`select_${type}`).checked = true;
-
-                // Close the modal
-                const modalId = `#${type}Modal`;
-                $(modalId).modal('hide');
-
-
-                // Clear the form
-                form.reset();
+                // Pulisci i campi
+                nomeInput.value    = '';
+                cognomeInput.value = '';
             } else {
                 alert('Errore: ' + data.message);
             }
         })
-        .catch(error => {
-            console.error('Errore nella richiesta:', error);
+        .catch(function () {
             alert("Errore durante l'invio dei dati.");
         });
     }
+
+    // ── Bind AJAX buttons ──
+    var addTutorBtn = document.getElementById('addTutorBtn');
+    if (addTutorBtn) {
+        addTutorBtn.addEventListener('click', function () { addDocente('tutor'); });
+    }
+
+    var addEspertoBtn = document.getElementById('addEspertoBtn');
+    if (addEspertoBtn) {
+        addEspertoBtn.addEventListener('click', function () { addDocente('esperto'); });
+    }
 });
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
-</body>
-</html>
+<?php include __DIR__ . '/includes/footer.php'; ?>
