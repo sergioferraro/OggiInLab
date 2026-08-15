@@ -17,6 +17,8 @@ $dbh = new PDO("mysql:host=".DB_HOST.";dbname=".DB_NAME,DB_USER, DB_PASS,array(P
 }
 catch (PDOException $e)
 {
-exit("Error: " . $e->getMessage());
+// Dettaglio solo nei log di server; al client solo un messaggio generico
+error_log('OggiInLab errore connessione DB: ' . $e->getMessage());
+exit('Il servizio non è attualmente disponibile. Riprova più tardi.');
 }
 ?>

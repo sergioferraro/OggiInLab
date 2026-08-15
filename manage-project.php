@@ -7,9 +7,9 @@
  * Licensed under the MIT License
  */
 declare(strict_types=1);
-session_start();
+require_once __DIR__ . '/includes/session.php';
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', defined('APP_DEBUG') && APP_DEBUG ? '1' : '0');
 
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/Logger.php';
@@ -65,7 +65,8 @@ if (empty($errors)) {
         $stmt->execute([':id' => $projectId]);
         $projectData = $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        $errors[] = 'Errore nel recupero dei dati: ' . htmlspecialchars($e->getMessage());
+        $errors[] = 'Errore nel recupero dei dati';
+        error_log('OggiInLab errore DB: ' . $e->getMessage());
     }
 }
 
@@ -82,7 +83,8 @@ try {
         . 'FROM docente WHERE isDeleted <> 1 ORDER BY cognome'
     )->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $errors[] = 'Errore nel recupero dei docenti: ' . htmlspecialchars($e->getMessage());
+    $errors[] = 'Errore nel recupero dei docenti';
+    error_log('OggiInLab errore DB: ' . $e->getMessage());
     $docenti = [];
 }
 
@@ -195,7 +197,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt2->execute([':id' => $projectId]);
                 $projectData = $stmt2->fetch(PDO::FETCH_ASSOC);
             } catch (PDOException $e) {
-                $errors[] = 'Errore database: ' . htmlspecialchars($e->getMessage());
+                $errors[] = 'Errore database';
+                error_log('OggiInLab errore DB: ' . $e->getMessage());
                 Logger::error('project_update_db_error', [
                     'project_id' => $projectId,
                     'error_message' => $e->getMessage(),
@@ -459,6 +462,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var formData = new FormData();
         formData.append('nome', nome);
         formData.append('cognome', cognome);
+        var tokenInput = document.querySelector('input[name="_token"]');
+        if (tokenInput) formData.append('_token', tokenInput.value);
 
         fetch('assets/utils/add_docente.php', {
             method: 'POST',

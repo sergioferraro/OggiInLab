@@ -13,6 +13,9 @@
  */
 declare(strict_types=1);
 
+// Header di sicurezza (endpoint pubblico, nessuna sessione)
+require_once __DIR__ . '/../../includes/security_headers.php';
+
 // -------------------------------------------------------------------
 // Rate limiting: max 60 richieste / minuto per IP
 // -------------------------------------------------------------------

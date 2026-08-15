@@ -4,7 +4,7 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
-session_start();
+require_once __DIR__ . '/../../includes/session.php';
 header('Content-Type: application/json');
 
 include "../../includes/config.php";
@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] != 'POST') {
 }
 
 // --- CSRF validation ---
-if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+if (empty($_POST['_token']) || !is_string($_POST['_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token'])) {
     echo json_encode(['success' => false, 'message' => 'Token CSRF non valido']);
     exit;
 }

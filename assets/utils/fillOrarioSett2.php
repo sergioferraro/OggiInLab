@@ -6,7 +6,7 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
-session_start();
+require_once __DIR__ . '/../../includes/session.php';
 header('Content-Type: application/json');
 include "../../includes/config.php";
 require_once __DIR__ . '/gantt_json_helper.php';

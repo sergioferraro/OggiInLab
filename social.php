@@ -5,9 +5,9 @@
  * Licensed under the MIT License
  */
 
-session_start();
+require_once __DIR__ . '/includes/session.php';
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', defined('APP_DEBUG') && APP_DEBUG ? '1' : '0');
 
 include "includes/config.php";
 

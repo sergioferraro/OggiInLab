@@ -5,7 +5,17 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
+require_once __DIR__ . '/../../includes/session.php';
 include "../../includes/config.php";
+
+// -------------------------------------------------------------------
+// Auth guard: l'endpoint richiede un admin autenticato
+// -------------------------------------------------------------------
+if (empty($_SESSION['alogin'])) {
+    header('HTTP/1.1 401 Unauthorized');
+    echo json_encode(['success' => false, 'error' => 'Non autenticato']);
+    exit;
+}
 
 header('Content-Type: application/json');
 
@@ -45,7 +55,9 @@ if ($id_progetto) {
         }
 
     } catch (PDOException $e) {
-        echo json_encode(['error' => $e->getMessage()]);
+        // Dettaglio solo nei log server, messaggio generico al client
+        error_log('get_project_details DB error: ' . $e->getMessage());
+        echo json_encode(['success' => false, 'error' => 'Errore durante il recupero dei dati.']);
     }
 } else {
     echo json_encode(['error' => 'Invalid project ID']);

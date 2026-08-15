@@ -6,20 +6,48 @@
  * Licensed under the MIT License
  */
 header('Content-Type: application/json');
-session_start();
+require_once __DIR__ . '/../../includes/session.php';
 include "../../includes/config.php";
 require_once __DIR__ . '/../../includes/Logger.php';
 
-$nome = $_POST['nome'] ?? '';
-$cognome = $_POST['cognome'] ?? '';
+// -------------------------------------------------------------------
+// Auth guard: solo admin autenticati possono aggiungere docenti
+// -------------------------------------------------------------------
+if (empty($_SESSION['alogin'])) {
+    Logger::warning('docente_add_unauthorized', [
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+    ]);
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Non autenticato']);
+    exit;
+}
 
-if (empty($nome) || empty($cognome)) {
+// -------------------------------------------------------------------
+// CSRF check
+// -------------------------------------------------------------------
+if (empty($_POST['_token']) || !is_string($_POST['_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token'])) {
+    Logger::warning('docente_add_csrf_error', [
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+    ]);
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Token CSRF non valido']);
+    exit;
+}
+
+$nome = trim((string)($_POST['nome'] ?? ''));
+$cognome = trim((string)($_POST['cognome'] ?? ''));
+
+// Validazione: solo lettere, spazi, apostrofi e punteggiatura comune; max 30 caratteri (colonna varchar(32))
+$nomeValido = preg_match("/^[\p{L} '\-\.]+$/u", $nome) && mb_strlen($nome) <= 30;
+$cognomeValido = preg_match("/^[\p{L} '\-\.]+$/u", $cognome) && mb_strlen($cognome) <= 30;
+
+if (!$nomeValido || !$cognomeValido) {
     Logger::warning('docente_add_validation_error', [
         'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
         'nome' => $nome,
         'cognome' => $cognome
     ]);
-    echo json_encode(['success' => false, 'message' => 'Nome e cognome sono obbligatori']);
+    echo json_encode(['success' => false, 'message' => 'Nome e cognome non validi (solo lettere, max 30 caratteri)']);
     exit();
 }
 
@@ -82,7 +110,7 @@ try {
     ]);
     echo json_encode([
         'success' => false,
-        'message' => "Errore database: " . $e->getMessage()
+        'message' => "Errore durante l'operazione. Riprova."
     ]);
 }
 ?>

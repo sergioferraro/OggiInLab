@@ -5,7 +5,7 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
-session_start();
+require_once __DIR__ . '/../../includes/session.php';
 include('../../includes/config.php');
 require_once __DIR__ . '/../../includes/Logger.php';
 error_reporting(0);
@@ -15,13 +15,22 @@ if (empty($_SESSION['alogin'])) {
     Logger::warning('admin_password_reset_unauthorized', [
         'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
     ]);
-    header("Location: index.php");
+    header("Location: ../../index.php");
+    exit;
+}
+
+// --- Role guard: solo Super Admin può resettare le password degli altri admin ---
+if (empty($_SESSION['is_super_admin']) || $_SESSION['is_super_admin'] != 1) {
+    Logger::warning('admin_password_reset_no_privileges', [
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+    ]);
+    header("Location: ../../index.php");
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // --- CSRF validation ---
-    if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+    if (empty($_POST['_token']) || !is_string($_POST['_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token'])) {
         Logger::warning('admin_password_reset_csrf_error', [
             'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
         ]);
@@ -63,6 +72,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "Errore: Non è stato possibile aggiornare la password.";
     }
 } else {
-    header("Location: index.php");
+    header("Location: ../../index.php");
 }
 ?>

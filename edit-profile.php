@@ -5,7 +5,7 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
-session_start();
+require_once __DIR__ . '/includes/session.php';
 include('includes/config.php');
 error_reporting(0);
 
@@ -29,7 +29,7 @@ $error = ""; $msg = "";
 
 if (isset($_POST['submit'])) {
     // --- CSRF validation ---
-    if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+    if (empty($_POST['_token']) || !is_string($_POST['_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token'])) {
         $error = "Token di sicurezza non valido. Riprova.";
     } else {
     $newNome = $_POST['nomeCompleto'];

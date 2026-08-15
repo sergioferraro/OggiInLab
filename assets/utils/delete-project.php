@@ -5,7 +5,7 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
-session_start();
+require_once __DIR__ . '/../../includes/session.php';
 header('Content-Type: application/json');
 require_once __DIR__ . '/../../includes/config.php'; // Use absolute path
 require_once __DIR__ . '/../../includes/Logger.php'; // Include the Logger class
@@ -22,7 +22,7 @@ if (isset($_SESSION['is_super_admin']) && $_SESSION['is_super_admin'] == 0) {
 }
 // Validate CSRF token
 $csrfToken = $_POST['_token'] ?? '';
-if (empty($csrfToken) || $csrfToken !== $_SESSION['csrf_token']) {
+if (empty($csrfToken) || !is_string($csrfToken) || !hash_equals($_SESSION['csrf_token'] ?? '', $csrfToken)) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Token CSRF non valido']);
     exit;
@@ -88,6 +88,6 @@ try {
     ]);
     
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Operazione non valida o non autorizzata.']);
 }
 ?>

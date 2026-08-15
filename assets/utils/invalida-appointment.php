@@ -4,10 +4,10 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
+require_once __DIR__ . '/../../includes/session.php';
 include "../../includes/config.php";
 require_once __DIR__ . '/../../includes/Logger.php';
 require_once __DIR__ . '/gantt_json_helper.php';
-session_start(); // Ensure session is started to validate CSRF token
 header('Content-Type: application/json');
 // Verify CSRF token
 $csrfTokenSession = $_SESSION['csrf_token'] ?? '';
@@ -20,7 +20,7 @@ $csrfToken = $_POST['_token'];
 error_log("ID corso: " . $courseId);
 error_log("ID appuntamento: " . $appointmentId);
 
-if ($csrfToken !== $_SESSION['csrf_token']) {
+if (!is_string($csrfToken) || $csrfToken === '' || !hash_equals($_SESSION['csrf_token'] ?? '', $csrfToken)) {
     Logger::warning('appointment_invalidate_csrf_error', [
         'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
     ]);

@@ -5,7 +5,7 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
-session_start();
+require_once __DIR__ . '/includes/session.php';
 include('includes/config.php');
 require_once __DIR__ . '/includes/Logger.php';
 error_reporting(0);
@@ -15,8 +15,16 @@ if (strlen($_SESSION['alogin']) == 0) {
 } else {
             // Management of Super Admin status change
             if (isset($_POST['toggle_super_admin'])) {
+                // --- Role guard: solo Super Admin può modificare i privilegi ---
+                if (empty($_SESSION['is_super_admin']) || $_SESSION['is_super_admin'] != 1) {
+                    Logger::warning('admin_toggle_superuser_no_privileges', [
+                        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        'target_admin_id' => $_POST['admin_id'] ?? null
+                    ]);
+                    $error = "Permesso negato: operazione riservata ai Super Admin.";
+                }
                 // --- CSRF validation ---
-                if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+                elseif (empty($_POST['_token']) || !is_string($_POST['_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token'])) {
                     $error = "Token di sicurezza non valido. Riprova.";
                 } else {
                     $adminId = intval($_POST['admin_id']);
@@ -89,8 +97,16 @@ if (strlen($_SESSION['alogin']) == 0) {
             }
             // Management of isActive status toggle
             if (isset($_POST['toggle_is_active'])) {
+                // --- Role guard: solo Super Admin può disattivare/riattivare admin ---
+                if (empty($_SESSION['is_super_admin']) || $_SESSION['is_super_admin'] != 1) {
+                    Logger::warning('admin_toggle_isactive_no_privileges', [
+                        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        'target_admin_id' => $_POST['admin_id'] ?? null
+                    ]);
+                    $error = "Permesso negato: operazione riservata ai Super Admin.";
+                }
                 // --- CSRF validation ---
-                if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+                elseif (empty($_POST['_token']) || !is_string($_POST['_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token'])) {
                     Logger::warning('admin_toggle_isactive_csrf_error', [
                         'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
                     ]);
@@ -162,8 +178,16 @@ if (strlen($_SESSION['alogin']) == 0) {
                 }
             }
             if (isset($_POST['delete_admin'])) {
+                // --- Role guard: solo Super Admin può eliminare admin ---
+                if (empty($_SESSION['is_super_admin']) || $_SESSION['is_super_admin'] != 1) {
+                    Logger::warning('admin_delete_no_privileges', [
+                        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        'target_admin_id' => $_POST['admin_id'] ?? null
+                    ]);
+                    $error = "Permesso negato: operazione riservata ai Super Admin.";
+                }
                 // --- CSRF validation ---
-                if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+                elseif (empty($_POST['_token']) || !is_string($_POST['_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token'])) {
                     Logger::warning('admin_delete_csrf_error', [
                         'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
                     ]);
@@ -221,7 +245,7 @@ if (strlen($_SESSION['alogin']) == 0) {
 
     if (isset($_POST['submit'])) {
         // --- CSRF validation ---
-        if (empty($_POST['_token']) || $_POST['_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+        if (empty($_POST['_token']) || !is_string($_POST['_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token'])) {
             Logger::warning('admin_add_csrf_error', [
                 'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
             ]);

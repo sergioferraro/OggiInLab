@@ -5,16 +5,16 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
+require_once __DIR__ . '/../../includes/session.php';
 include "../../includes/config.php";
 require_once __DIR__ . '/gantt_json_helper.php';
-session_start();
 header('Content-Type: application/json');
 
 // --- CSRF validation ---
 $csrfTokenPost = $_POST['_token'] ?? '';
 $csrfTokenSession = $_SESSION['csrf_token'] ?? '';
 
-if ($csrfTokenPost !== $csrfTokenSession) {
+if (!is_string($csrfTokenPost) || $csrfTokenPost === '' || !hash_equals($csrfTokenSession, $csrfTokenPost)) {
     echo json_encode(['success' => false, 'message' => 'Token CSRF non valido']);
     exit;
 }

@@ -7,9 +7,9 @@
  * Licensed under the MIT License
  */
 declare(strict_types=1);
-session_start();
+require_once __DIR__ . '/includes/session.php';
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', defined('APP_DEBUG') && APP_DEBUG ? '1' : '0');
 
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/Logger.php';
@@ -109,7 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'cognome' => $tutorCognome,
                         'error_message' => $e->getMessage()
                     ]);
-                    $errors[] = 'Errore nell\'inserimento del tutor: ' . htmlspecialchars($e->getMessage());
+                    $errors[] = 'Errore nell\'inserimento del tutor';
+                    error_log('OggiInLab errore DB: ' . $e->getMessage());
                 }
             } else {
                 Logger::warning('project_add_docente_validation', [
@@ -160,7 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'cognome' => $espertoCognome,
                         'error_message' => $e->getMessage()
                     ]);
-                    $errors[] = 'Errore nell\'inserimento dell\'esperto: ' . htmlspecialchars($e->getMessage());
+                    $errors[] = 'Errore nell\'inserimento dell\'esperto';
+                    error_log('OggiInLab errore DB: ' . $e->getMessage());
                 }
             } else {
                 Logger::warning('project_add_docente_validation', [
@@ -213,7 +215,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'esperto_id' => $id_esperto,
                     'error_message' => $e->getMessage()
                 ]);
-                $errors[] = 'Errore nell\'inserimento del progetto: ' . htmlspecialchars($e->getMessage());
+                $errors[] = 'Errore nell\'inserimento del progetto';
+                error_log('OggiInLab errore DB: ' . $e->getMessage());
             }
         }
     }
@@ -225,7 +228,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 try {
     $docenti = $dbh->query('SELECT idDocente, cognome FROM docente WHERE isDeleted <> 1')->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $errors[] = 'Errore nel recupero dei docenti: ' . htmlspecialchars($e->getMessage());
+    $errors[] = 'Errore nel recupero dei docenti';
+    error_log('OggiInLab errore DB: ' . $e->getMessage());
     $docenti = [];
 }
 

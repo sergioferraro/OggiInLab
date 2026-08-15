@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var formData = new FormData();
         formData.append('nome', nome);
         formData.append('cognome', cognome);
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) formData.append('_token', csrfMeta.getAttribute('content'));
 
         fetch('assets/utils/add_docente.php', {
             method: 'POST',

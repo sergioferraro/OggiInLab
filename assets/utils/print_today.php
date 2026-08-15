@@ -1,7 +1,7 @@
 <?php
 // Enable Error Display
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', defined('APP_DEBUG') && APP_DEBUG ? '1' : '0');
+ini_set('display_startup_errors', '0');
 error_reporting(E_ALL);
 date_default_timezone_set('Europe/Rome');
 function clean_text($text) {
@@ -32,7 +32,17 @@ function truncate_str($text, $max_bytes) {
     }
     return mb_strcut($text, 0, $max_bytes - 3, 'UTF-8') . '...';
 }
+require_once __DIR__ . '/../../includes/session.php';
 include "../../includes/config.php";
+
+// -------------------------------------------------------------------
+// Auth guard: l'endpoint richiede un admin autenticato
+// -------------------------------------------------------------------
+if (empty($_SESSION['alogin'])) {
+    header('Location: ../../index.php');
+    exit;
+}
+
 // Retrieve and validate the date passed via GET, otherwise use today's date
 if (isset($_GET['data']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['data'])) {
     $dataStampa = $_GET['data'];
@@ -61,7 +71,8 @@ $stmt->bindParam(':data', $dataStampa);
 
 // Execute the Query and Check for Any Errors
 if (!$stmt->execute()) {
-    print_r($stmt->errorInfo());
+    // Dettaglio solo nei log di server
+    error_log('OggiInLab print_today errore query: ' . json_encode($stmt->errorInfo()));
     exit;
 }
 

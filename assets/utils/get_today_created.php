@@ -1,9 +1,18 @@
 <?php
 // get_modified_appointments_authors.php
-session_start();
+require_once __DIR__ . '/../../includes/session.php';
 header('Content-Type: application/json');
 // Assicurati che il percorso al tuo file di configurazione sia corretto
 include "../../includes/config.php";
+
+// -------------------------------------------------------------------
+// Auth guard: l'endpoint richiede un admin autenticato
+// -------------------------------------------------------------------
+if (empty($_SESSION['alogin'])) {
+    header('HTTP/1.1 401 Unauthorized');
+    echo json_encode(['success' => false, 'error' => 'Non autenticato']);
+    exit;
+}
 
 try {
     // Query per selezionare l'autore degli appuntamenti modificati
@@ -61,7 +70,8 @@ try {
 
 } catch (PDOException $e) {
     // Gestione degli errori di database
-    // Restituisce un messaggio di errore in formato JSON
-    echo json_encode(['error' => $e->getMessage()]);
+    // Dettaglio solo nei log server, messaggio generico al client
+    error_log('get_today_created DB error: ' . $e->getMessage());
+    echo json_encode(['error' => 'Errore durante il recupero dei dati.']);
 }
 ?>

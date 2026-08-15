@@ -6,7 +6,17 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
+require_once __DIR__ . '/../../includes/session.php';
 include "../../includes/config.php";
+
+// -------------------------------------------------------------------
+// Auth guard: l'endpoint richiede un admin autenticato
+// -------------------------------------------------------------------
+if (empty($_SESSION['alogin'])) {
+    header('Location: ../../index.php');
+    exit;
+}
+
 date_default_timezone_set('Europe/Rome');
 $idProgetto = $_GET['id'] ?? 1;
 

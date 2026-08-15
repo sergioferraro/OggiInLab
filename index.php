@@ -4,7 +4,7 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
-session_start();
+require_once __DIR__ . '/includes/session.php';
 include('includes/config.php');
 if(isset($_POST['login'])) {
     $username = $_POST['userName'];

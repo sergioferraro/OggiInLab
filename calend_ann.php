@@ -7,9 +7,9 @@
  * Licensed under the MIT License
  */
 declare(strict_types=1);
-session_start();
+require_once __DIR__ . '/includes/session.php';
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', defined('APP_DEBUG') && APP_DEBUG ? '1' : '0');
 
 require_once __DIR__ . '/includes/config.php';
 
@@ -133,7 +133,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $schoolStart = $startDate;
                 $schoolEnd   = $endDate;
             } catch (PDOException $e) {
-                $errors[] = 'Errore salvataggio date: ' . htmlspecialchars($e->getMessage());
+                $errors[] = 'Errore salvataggio date';
+                error_log('OggiInLab errore DB: ' . $e->getMessage());
             }
         }
 
@@ -161,7 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 ]);
                 $success = 'Chiusura aggiunta con successo.';
             } catch (PDOException $e) {
-                $errors[] = 'Errore inserimento: ' . htmlspecialchars($e->getMessage());
+                $errors[] = 'Errore inserimento';
+                error_log('OggiInLab errore DB: ' . $e->getMessage());
             }
         }
     }
@@ -221,7 +223,8 @@ try {
     $stmt->execute([':anno' => $annoScolastico]);
     $festivi = $stmt->fetchAll(PDO::FETCH_OBJ);
 } catch (PDOException $e) {
-    $errors[] = 'Errore nel recupero delle festività: ' . htmlspecialchars($e->getMessage());
+    $errors[] = 'Errore nel recupero delle festività';
+    error_log('OggiInLab errore DB: ' . $e->getMessage());
     $festivi = [];
 }
 

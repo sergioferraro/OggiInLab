@@ -5,10 +5,10 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
+require_once __DIR__ . '/../../includes/session.php';
 include "../../includes/config.php";
 require_once __DIR__ . '/../../includes/Logger.php';
 require_once __DIR__ . '/gantt_json_helper.php'; // Ensure correct path to config
-session_start();
 header('Content-Type: application/json');
 
 // Validate CSRF token
@@ -39,7 +39,7 @@ if (!is_numeric($courseId) || !is_numeric($appointmentId)) {
 }
 
 // Validate CSRF token match
-if ($csrfTokenPost !== $csrfTokenSession) {
+if (!is_string($csrfTokenPost) || $csrfTokenPost === '' || !hash_equals($csrfTokenSession, $csrfTokenPost)) {
     Logger::warning('appointment_hard_delete_csrf_error', [
         'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
     ]);

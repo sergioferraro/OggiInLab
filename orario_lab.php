@@ -6,7 +6,7 @@
  * Licensed under the MIT License
  */
 
-session_start();
+require_once __DIR__ . '/includes/session.php';
 
 // Controllo login
 if (!isset($_SESSION['alogin'])) {
@@ -83,7 +83,7 @@ if ($idAula) {
 // Form Submission Management
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $idAula) {
     // Verifica CSRF
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    if (!isset($_POST['csrf_token']) || !is_string($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'])) {
         die('Token CSRF non valido.');
     }
 

@@ -5,8 +5,8 @@
  * Copyright (c) 2026 Sergio Ferraro
  * Licensed under the MIT License
  */
-session_start();
-ini_set('display_errors', 1);
+require_once __DIR__ . '/includes/session.php';
+ini_set('display_errors', defined('APP_DEBUG') && APP_DEBUG ? '1' : '0');
 error_reporting(E_ALL);
 
 
@@ -30,8 +30,17 @@ $success = '';
 $editingAula = null;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // --- CSRF validation ---
+    $csrfOk = !empty($_POST['_token'])
+        && is_string($_POST['_token'])
+        && hash_equals($_SESSION['csrf_token'] ?? '', $_POST['_token']);
+
+    if (!$csrfOk) {
+        $errors[] = "Token di sicurezza non valido. Riprova.";
+    }
+
     // Addition of Classroom (action = 'add')
-    if (isset($_POST['action']) && $_POST['action'] === 'add') {
+    if ($csrfOk && isset($_POST['action']) && $_POST['action'] === 'add') {
         $nAula = trim($_POST['nAula']);
         $nPosti = intval($_POST['nPosti']);
         $computer = isset($_POST['computer']) ? 1 : 0;
@@ -53,13 +62,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                    VALUES (?, ?, ?, ?, ?, ?)");
             
             //  Execute the Query
-            $success = $stmt->execute([$nAula, $nPosti, $computer, $richiedeAt, $lim, $pcDocente])
-                ? "Aula aggiunta con successo."
-                : "Errore: " . $stmt->errorInfo()[2];
+            if ($stmt->execute([$nAula, $nPosti, $computer, $richiedeAt, $lim, $pcDocente])) {
+                $success = "Aula aggiunta con successo.";
+            } else {
+                error_log("Errore inserimento aula: " . $stmt->errorInfo()[2]);
+                $errors[] = "Errore durante l'aggiunta dell'aula.";
+            }
         }
     } 
     // Modification of Classroom
-    elseif (isset($_POST['action']) && $_POST['action'] == 'edit') {
+    elseif ($csrfOk && isset($_POST['action']) && $_POST['action'] == 'edit') {
         $idAula = intval($_POST['idAula']);
         try {
             $stmt = $dbh->prepare("SELECT * FROM aula WHERE idAula = ?");
@@ -70,7 +82,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     } 
     // Update of Classroom
-    elseif (isset($_POST['action']) && $_POST['action'] == 'update') {
+    elseif ($csrfOk && isset($_POST['action']) && $_POST['action'] == 'update') {
         $idAula = intval($_POST['idAula']);
         $nAula = trim($_POST['nAula']);
         $nPosti = intval($_POST['nPosti']);
@@ -92,13 +104,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $stmt = $dbh->prepare("UPDATE aula SET nAula = ?, nPosti = ?, computer = ?, richiedeAt = ?, lim = ?, pcDocente = ? WHERE idAula = ?");
             
             // Execute the Query
-            $success = $stmt->execute([$nAula, $nPosti, $computer, $richiedeAt, $lim, $pcDocente, $idAula])
-                ? "Aula aggiornata con successo."
-                : "Errore: " . $stmt->errorInfo()[2];
+            if ($stmt->execute([$nAula, $nPosti, $computer, $richiedeAt, $lim, $pcDocente, $idAula])) {
+                $success = "Aula aggiornata con successo.";
+            } else {
+                error_log("Errore aggiornamento aula id=$idAula: " . $stmt->errorInfo()[2]);
+                $errors[] = "Errore durante l'aggiornamento dell'aula.";
+            }
         }
     } 
-    // Deletion of Classroom
-    elseif (isset($_POST['action']) && $_POST['action'] == 'delete') {
+    // Deletion of Classroom (solo Super Admin, coerente con la UI)
+    elseif ($csrfOk && isset($_POST['action']) && $_POST['action'] == 'delete') {
+        // --- Role guard: solo Super Admin può eliminare un'aula ---
+        if (empty($_SESSION['is_super_admin']) || $_SESSION['is_super_admin'] != 1) {
+            $errors[] = "Permesso negato: l'eliminazione di un'aula è riservata ai Super Admin.";
+        } else {
         $idAula = intval($_POST['idAula']);
         try {
             // Verify if there are Future Appointments
@@ -112,13 +131,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             } else {
                 // Otherwise Proceed with the Deletion
                 $stmtDelete = $dbh->prepare("DELETE FROM aula WHERE idAula = ?");
-                $success = $stmtDelete->execute([$idAula])
-                    ? "Aula eliminata con successo."
-                    : "Errore: " . $stmtDelete->errorInfo()[2];
+                if ($stmtDelete->execute([$idAula])) {
+                    $success = "Aula eliminata con successo.";
+                } else {
+                    error_log("Errore eliminazione aula id=$idAula: " . $stmtDelete->errorInfo()[2]);
+                    $errors[] = "Errore durante l'eliminazione dell'aula.";
+                }
             }
         } catch (PDOException $e) {
             error_log("Errore durante l'eliminazione dell'aula: " . $e->getMessage());
             $errors[] = "Errore durante l'eliminazione.";
+        }
         }
     
         // Reload Data to Display Changes
@@ -189,6 +212,7 @@ $pageTitle = 'OggiInLab | Aule';
                                 <div style="display: flex; gap: 8px;">
                                     <!-- Form to Modify the Classroom -->
                                     <form method="POST" action="<?= htmlspecialchars($_SERVER['PHP_SELF']); ?>">
+                                        <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                                         <input type="hidden" name="idAula" value="<?= $aula['idAula'] ?>">
                                         <input type="hidden" name="action" value="edit">
                                         <button type="submit" class="btn btn-warning btn-sm">
@@ -199,6 +223,7 @@ $pageTitle = 'OggiInLab | Aule';
                                     <!-- Delete Button (Only for Super Admin) -->
                                     <?php if (isset($_SESSION['is_super_admin']) && $_SESSION['is_super_admin'] == 1): ?>
                                         <form method="POST" action="<?= htmlspecialchars($_SERVER['PHP_SELF']); ?>">
+                                            <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                                             <input type="hidden" name="idAula" value="<?= $aula['idAula'] ?>">
                                             <input type="hidden" name="action" value="delete">
                                             <button type="submit" class="btn btn-danger btn-sm">
@@ -216,6 +241,7 @@ $pageTitle = 'OggiInLab | Aule';
         <div class="col-md-6">
         <h5><?= ($editingAula ? 'Modifica Aula' : 'Aggiungi Nuova Aula') ?></h5>
         <form method="POST" action="<?= htmlspecialchars($_SERVER['PHP_SELF']); ?>">
+            <input type="hidden" name="_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
             <?php if ($editingAula): ?>
                 <input type="hidden" name="idAula" value="<?= $editingAula['idAula'] ?>">
                 <input type="hidden" name="action" value="update">
