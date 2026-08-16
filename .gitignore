@@ -17,3 +17,7 @@ uploads/.gantt_*
 # Privacy
 privacy.txt
 privacy.php
+
+# Report di sicurezza (uso interno, non versionare)
+SECURITY_REPORT.md
+REPORT_CREDENZIALI.md
