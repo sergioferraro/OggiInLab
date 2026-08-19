@@ -1,8 +1,9 @@
 # Configurazione sensibile
 includes/config.php
 
-# Logs
-logs/
+# Logs (traccia il .htaccess che nega l'accesso web)
+logs/*
+!logs/.htaccess
 
 # Upload temporanei e dati utente
 uploads/*.jpeg

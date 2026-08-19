@@ -6,38 +6,117 @@
  */
 require_once __DIR__ . '/includes/session.php';
 include('includes/config.php');
+require_once __DIR__ . '/includes/Logger.php';
+require_once __DIR__ . '/includes/login_rate_limit.php';
+
+/*
+ * Rate limiting del login (SECURITY_REPORT.md — M-3, CWE-307):
+ *  1) throttling per IP (20 tentativi / 15 min, finestra mobile);
+ *  2) lockout progressivo per username (5 fallimenti → 5 min di blocco,
+ *     raddoppio a ogni +5 fallimenti, max 2h; reset al login riuscito);
+ *  3) log di ogni attempt in logs/admin_actions.log (via Logger).
+ * Stato su file JSON in logs/ (stesso meccanismo di public_today_gantt.php).
+ */
+// Hash fittizio (di nessun account) usato per equalizzare i tempi di risposta
+// tra "utente non trovato" e "password errata" (anti timing-attack / enumerazione)
+define('LOGIN_TIMING_HASH', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+
 if(isset($_POST['login'])) {
-    $username = $_POST['userName'];
-    $password_input = $_POST['password'];
-    // Query per recuperare l'utente per username
-    $sql = "SELECT id,userName, Password, nomeCompleto,is_super_admin,isActive FROM admin WHERE userName=:username AND isActive=1";
-    $query = $dbh->prepare($sql);
-    $query->bindParam(':username', $username, PDO::PARAM_STR);
-    $query->execute();
+    $ip             = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $username       = trim((string)($_POST['userName'] ?? ''));
+    $password_input = (string)($_POST['password'] ?? '');
 
-    if ($row = $query->fetch(PDO::FETCH_ASSOC)) {
-        // Confronta la password con password_verify()
-        if (password_verify($password_input, $row['Password'])) {
-            // Aggiorna timestamp ultimo login
-            $updateSql = "UPDATE admin SET lastLogin = NOW() WHERE id = :id";
-            $updateStmt = $dbh->prepare($updateSql);
-            $updateStmt->bindParam(':id', $row['id'], PDO::PARAM_INT);
-            $updateStmt->execute();
+    // Pulizia occasionale degli stati scaduti
+    LoginRateLimit::cleanup();
 
-            // Accesso riuscito
-            // Rigenera session ID per prevenire session fixation
-            session_regenerate_id(true);
-            $_SESSION['alogin'] = $username;
-            $_SESSION['nomeCompleto'] = $row['nomeCompleto'];
-            $_SESSION['id'] = $row['id'];
-            $_SESSION['is_super_admin'] = $row['is_super_admin'];
-            header("Location: dashboard.php");
-            exit();
-        } else {
-            echo "<script>alert('Username o password non validi');</script>";
-        }
+    // Messaggio mostrato al client (stesso stile alert già in uso)
+    $alert = static function (string $msg): void {
+        echo '<script>alert(' . json_encode($msg, JSON_UNESCAPED_UNICODE) . ');</script>';
+    };
+
+    $clientInfo = [
+        'ip_address'         => $ip,
+        'username_attempted' => $username === '' ? null : $username,
+    ];
+
+    // 1) Throttling per IP
+    $ipState = LoginRateLimit::ipAttempt($ip);
+    if ($ipState['blocked']) {
+        Logger::warning('login_ip_throttled', $clientInfo + [
+            'wait_minutes'     => $ipState['wait'],
+            'attempts_in_window' => $ipState['count'],
+        ]);
+        $alert('Troppi tentativi di accesso da questa rete. Riprova tra ' . $ipState['wait'] . ' minuti.');
+    } elseif ($username === '' || $password_input === '') {
+        Logger::warning('login_rejected', $clientInfo + ['reason' => 'credenziali vuote']);
+        $alert('Inserisci utente e password.');
     } else {
-        echo "<script>alert('Username o password non validi');</script>";
+        // 2) Lockout progressivo per username
+        $userState = LoginRateLimit::checkUser($username);
+        if ($userState['locked']) {
+            Logger::critical('login_locked', $clientInfo + [
+                'wait_minutes'    => $userState['wait'],
+                'failed_attempts' => $userState['failures'],
+            ]);
+            $alert('Troppi tentativi falliti per questo utente. Riprova tra ' . $userState['wait'] . ' minuti.');
+        } else {
+            // 3) Recupero utente e verifica password
+            $row = null;
+            try {
+                $sql = "SELECT id,userName, Password, nomeCompleto,is_super_admin,isActive FROM admin WHERE userName=:username AND isActive=1";
+                $query = $dbh->prepare($sql);
+                $query->bindParam(':username', $username, PDO::PARAM_STR);
+                $query->execute();
+                $row = $query->fetch(PDO::FETCH_ASSOC) ?: null;
+            } catch (PDOException $e) {
+                // Dettaglio solo nei log di server (M-4)
+                error_log('OggiInLab login: errore query: ' . $e->getMessage());
+                Logger::error('login_db_error', $clientInfo);
+            }
+
+            // password_verify viene sempre eseguito (su hash fittizio se l'utente
+            // non esiste): tempi di risposta uniformi, anti enumerazione utenti
+            $stored = (is_array($row) && is_string($row['Password'] ?? null)) ? $row['Password'] : LOGIN_TIMING_HASH;
+            $valid  = is_array($row) && password_verify($password_input, $stored);
+
+            if ($valid) {
+                // Login riuscito: azzera eventuali fallimenti accumulati
+                LoginRateLimit::recordSuccess($username);
+                Logger::success('login_success', $clientInfo + [
+                    'admin_id' => $row['id'],
+                ]);
+
+                // Aggiorna timestamp ultimo login
+                $updateSql = "UPDATE admin SET lastLogin = NOW() WHERE id = :id";
+                $updateStmt = $dbh->prepare($updateSql);
+                $updateStmt->bindParam(':id', $row['id'], PDO::PARAM_INT);
+                $updateStmt->execute();
+
+                // Accesso riuscito
+                // Rigenera session ID per prevenire session fixation
+                session_regenerate_id(true);
+                $_SESSION['alogin'] = $username;
+                $_SESSION['nomeCompleto'] = $row['nomeCompleto'];
+                $_SESSION['id'] = $row['id'];
+                $_SESSION['is_super_admin'] = $row['is_super_admin'];
+                header("Location: dashboard.php");
+                exit();
+            }
+
+            // 4) Login fallito: aggiorna contatori/lockout e logga
+            $newState = LoginRateLimit::recordFailure($username);
+            Logger::warning('login_failed', $clientInfo + [
+                'failed_attempts' => $newState['failures'],
+                'locked'          => $newState['locked'],
+                'lock_minutes'    => $newState['wait'],
+            ]);
+
+            $msg = 'Username o password non validi.';
+            if ($newState['locked']) {
+                $msg .= ' Riprova tra ' . $newState['wait'] . ' minuti.';
+            }
+            $alert($msg);
+        }
     }
 }
 
